@@ -9,12 +9,21 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +42,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.passwordmanager.data.Account
+import com.example.passwordmanager.data.AccountType
+import com.example.passwordmanager.data.WifiHelper
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -58,8 +69,10 @@ fun AccountItem(
         Color(0xFF1565C0)
     }
 
-    // ClipboardManager instance
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val isWifi = account.getType() == AccountType.WIFI
+    val displayName = if (isWifi) account.getSsid() else account.getName()
+
     Column {
         Layout(
             content = {
@@ -99,22 +112,16 @@ fun AccountItem(
                             detectHorizontalDragGestures(
                                 onDragEnd = {
                                     when {
-                                        offsetX > swipeThreshold -> {
-                                            onEdit(account)
-                                        }
-                                        offsetX < -swipeThreshold -> {
-                                            onDelete(account)
-                                        }
+                                        offsetX > swipeThreshold -> onEdit(account)
+                                        offsetX < -swipeThreshold -> onDelete(account)
                                     }
                                     offsetX = 0f
                                     isSwiped = false
                                 },
                                 onHorizontalDrag = { _, dragAmount ->
-                                    // Only allow swiping to the right (positive dragAmount)
                                     offsetX += dragAmount
                                     isSwiped = abs(offsetX) > 0
                                     swipeDirection = if (offsetX > 0) "right" else "left"
-
                                 }
                             )
                         }
@@ -122,21 +129,13 @@ fun AccountItem(
                             onClick = { isPasswordVisible = !isPasswordVisible },
                             onLongClick = {
                                 if (isPasswordVisible) {
-                                    val clip = android.content.ClipData.newPlainText(
-                                        "Password",
-                                        account.getPassword()
-                                    )
+                                    val clip = android.content.ClipData.newPlainText("Password", account.getPassword())
                                     clipboardManager.setPrimaryClip(clip)
-                                    Toast.makeText(
-                                        context,
-                                        "Password copied to clipboard",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    Toast.makeText(context, "Password copied to clipboard", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         )
                 ) {
-                    // Background that becomes visible when swiped
                     if (isSwiped) {
                         Box(
                             modifier = Modifier
@@ -145,46 +144,68 @@ fun AccountItem(
                         )
                     }
 
-                    // Foreground content
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        // Username text with dynamic truncation
-                        Text(
-                            text = account.getName(),
-                            fontSize = 22.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
                             modifier = Modifier
+                                .weight(1f)
                                 .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .fillMaxWidth()  // Constrain to parent width
-                        )
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (isWifi) Icons.Default.Wifi else Icons.Default.Language,
+                                    contentDescription = null,
+                                    tint = passwordColor,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    text = displayName,
+                                    fontSize = 22.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Text(
+                                text = if (isPasswordVisible) account.getPassword() else "••••••••",
+                                fontSize = 35.sp,
+                                color = passwordColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
 
-                        // Password text
-                        Text(
-                            text = if (isPasswordVisible) account.getPassword() else "••••••••",
-                            fontSize = 35.sp,
-                            color = passwordColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .align(Alignment.BottomStart)
-                                .fillMaxWidth()  // Constrain to parent width
-                        )
+                        if (isWifi) {
+                            Button(
+                                onClick = {
+                                    val success = WifiHelper.suggestNetwork(
+                                        context,
+                                        account.getSsid(),
+                                        account.getPassword(),
+                                        account.getSecurityType()
+                                    )
+                                    if (success) {
+                                        Toast.makeText(context, "Đã gửi yêu cầu kết nối Wifi", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Thiết bị không hỗ trợ hoặc có lỗi xảy ra", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.padding(end = 16.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = passwordColor)
+                            ) {
+                                Text("Connect")
+                            }
+                        }
                     }
                 }
             }
         ) { measurable, constraints ->
-            // Measure both boxes
             val placeable = measurable.map { it.measure(constraints) }
-
-            // Position them at (0, 0) relative to the Layout
             layout(constraints.maxWidth, 80.dp.roundToPx()) {
                 placeable.forEach { it.place(0, 0) }
             }
         }
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            thickness = 1.dp,
-        )
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 1.dp)
     }
 }

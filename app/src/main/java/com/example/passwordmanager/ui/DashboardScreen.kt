@@ -22,6 +22,11 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController // Import NavController
 import androidx.navigation.compose.rememberNavController // Import for Preview
 import com.example.passwordmanager.ui.theme.PasswordManagerTheme
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import com.example.passwordmanager.data.Account
 
 data class GridCardItem(
     val icon: ImageVector,
@@ -31,7 +36,7 @@ data class GridCardItem(
 )
 
 @Composable
-fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier) {
+fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier, accounts: MutableList<Account> = mutableListOf()) {
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
@@ -102,47 +107,51 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier)
                     }
                 }
 
-                // Shared Groups Section
+                // Accounts List Section
                 Text(
-                    text = "SHARED GROUPS",
+                    text = "MY ACCOUNTS",
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
-                    modifier = Modifier.padding(bottom = 12.dp)
+                    modifier = Modifier.padding(top = 16.dp, bottom = 12.dp)
                 )
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+
+                val context = LocalContext.current
+                var deletingAccount by remember { mutableStateOf<Account?>(null) }
+                var searchQuery by remember { mutableStateOf("") } // Basic search state
+
+                val filteredAccounts = accounts.filter {
+                    it.getName().contains(searchQuery, ignoreCase = true) || 
+                    it.getSsid().contains(searchQuery, ignoreCase = true)
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().weight(1f)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Filled.Group,
-                                contentDescription = "New Shared Group",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(end = 12.dp)
-                            )
-                            Text(
-                                text = "New Shared Group",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Icon(
-                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = "Go to New Shared Group",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    items(filteredAccounts) { account ->
+                        AccountItem(
+                            account = account,
+                            context = context,
+                            onEdit = { accountToEdit ->
+                                val name = if (accountToEdit.getType() == com.example.passwordmanager.data.AccountType.WIFI) accountToEdit.getSsid() else accountToEdit.getName()
+                                navController.navigate("createAccount/$name")
+                            },
+                            onDelete = { deletingAccount = it }
                         )
                     }
+                }
+
+                deletingAccount?.let { account ->
+                    DeleteAccountDialog(
+                        account = account,
+                        onDismiss = { deletingAccount = null },
+                        onDelete = {
+                            accounts.remove(account)
+                            deletingAccount = null
+                            com.example.passwordmanager.data.EncryptionHelper.saveAccounts(context, accounts)
+                        }
+                    )
                 }
             }
         }

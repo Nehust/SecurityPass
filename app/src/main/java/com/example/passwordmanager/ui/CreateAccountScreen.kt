@@ -1,48 +1,35 @@
 package com.example.passwordmanager.ui
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.padding
+import android.content.pm.PackageManager
+import android.net.wifi.WifiManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.passwordmanager.data.Account
+import com.example.passwordmanager.data.AccountType
 import com.example.passwordmanager.data.EncryptionHelper
 
-@SuppressLint("ConfigurationScreenWidthHeight")
+@SuppressLint("ConfigurationScreenWidthHeight", "MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateAccountScreen(
@@ -52,14 +39,43 @@ fun CreateAccountScreen(
     existingAccount: Account? = null,
     context: Context
 ) {
-    var username by remember { mutableStateOf(TextFieldValue(existingAccount?.getName() ?: "")) }
-    var password by remember { mutableStateOf(TextFieldValue(existingAccount?.getPassword() ?: "")) }
+    var accountType by remember { mutableStateOf(existingAccount?.getType() ?: AccountType.LOGIN) }
+    var username by remember { mutableStateOf(existingAccount?.getName() ?: "") }
+    var ssid by remember { mutableStateOf(existingAccount?.getSsid() ?: "") }
+    var password by remember { mutableStateOf(existingAccount?.getPassword() ?: "") }
+    var securityType by remember { mutableStateOf(existingAccount?.getSecurityType() ?: "WPA2") }
+    
     var passwordVisible by remember { mutableStateOf(false) }
+    var showQRScanner by remember { mutableStateOf(false) }
+    var showWifiListDialog by remember { mutableStateOf(false) }
+    var availableWifiList by remember { mutableStateOf<List<String>>(emptyList()) }
+
     val scrollState = rememberScrollState()
     val keyboardController = LocalSoftwareKeyboardController.current
-    val configuration = LocalConfiguration.current
-    configuration.screenHeightDp.dp
-    val imePadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val results = wifiManager.scanResults
+            availableWifiList = results.map { it.SSID }.filter { it.isNotEmpty() }.distinct()
+            showWifiListDialog = true
+        }
+    }
+
+    if (showQRScanner) {
+        QRScannerScreen(
+            onQRCodeScanned = { scannedSsid, scannedPass, scannedType ->
+                ssid = scannedSsid
+                password = scannedPass
+                securityType = scannedType
+                showQRScanner = false
+            },
+            onCancel = { showQRScanner = false }
+        )
+        return
+    }
 
     Column(
         modifier = modifier
@@ -83,6 +99,22 @@ fun CreateAccountScreen(
             }
         )
 
+        // Tabs for Login or Wifi
+        if (existingAccount == null) {
+            TabRow(selectedTabIndex = if (accountType == AccountType.LOGIN) 0 else 1) {
+                Tab(
+                    selected = accountType == AccountType.LOGIN,
+                    onClick = { accountType = AccountType.LOGIN },
+                    text = { Text("Web/App") }
+                )
+                Tab(
+                    selected = accountType == AccountType.WIFI,
+                    onClick = { accountType = AccountType.WIFI },
+                    text = { Text("Wi-Fi") }
+                )
+            }
+        }
+
         Column(
             modifier = Modifier
                 .padding(horizontal = 12.dp)
@@ -90,13 +122,43 @@ fun CreateAccountScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Username") },
-                modifier = Modifier.fillMaxWidth(),
-                maxLines = 3
-            )
+            if (accountType == AccountType.LOGIN) {
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username / Website") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            } else {
+                OutlinedTextField(
+                    value = ssid,
+                    onValueChange = { ssid = it },
+                    label = { Text("Wi-Fi Name (SSID)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Button(onClick = { showQRScanner = true }) {
+                        Text("Quét QR Wi-Fi")
+                    }
+                    Button(onClick = {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+                            val results = wifiManager.scanResults
+                            availableWifiList = results.map { it.SSID }.filter { it.isNotEmpty() }.distinct()
+                            showWifiListDialog = true
+                        } else {
+                            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
+                    }) {
+                        Text("Mạng gần đây")
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -104,37 +166,36 @@ fun CreateAccountScreen(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Password") },
-                visualTransformation = if (passwordVisible) {
-                    VisualTransformation.None
-                } else {
-                    PasswordVisualTransformation()
-                },
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
-                            imageVector = if (passwordVisible) {
-                                Icons.Default.Visibility
-                            } else {
-                                Icons.Default.VisibilityOff
-                            },
-                            contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = "Toggle password visibility"
                         )
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                maxLines = 3
+                singleLine = true
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Password generator button
-            Button(
-                onClick = {
-                    password = TextFieldValue(generateStrongPassword())
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Generate Strong Password")
+            if (accountType == AccountType.LOGIN) {
+                Button(
+                    onClick = { password = generateStrongPassword() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Generate Strong Password")
+                }
+            } else {
+                OutlinedTextField(
+                    value = securityType,
+                    onValueChange = { securityType = it },
+                    label = { Text("Security Type (WPA2, WEP, NONE)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -143,24 +204,24 @@ fun CreateAccountScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(
-                    start = 12.dp,
-                    end = 12.dp,
-                    bottom = 12.dp + imePadding
-                )
+                .padding(12.dp)
         ) {
             Button(
                 onClick = {
                     keyboardController?.hide()
                     if (existingAccount != null) {
-                        existingAccount.setName(username.text)
-                        existingAccount.setPassword(password.text)
+                        if (accountType == AccountType.LOGIN) existingAccount.setName(username) else existingAccount.setSsid(ssid)
+                        existingAccount.setPassword(password)
+                        existingAccount.setSecurityType(securityType)
+                        existingAccount.setType(accountType)
                     } else {
                         val newAccount = Account().apply {
-                            setName(username.text)
-                            setPassword(password.text)
+                            if (accountType == AccountType.LOGIN) setName(username) else setSsid(ssid)
+                            setPassword(password)
+                            setSecurityType(securityType)
+                            setType(accountType)
                         }
-                        if (newAccount.getName().isNotEmpty() && newAccount.getPassword().isNotEmpty()) {
+                        if (newAccount.getName().isNotEmpty() || newAccount.getSsid().isNotEmpty()) {
                             accounts.add(newAccount)
                         }
                     }
@@ -173,16 +234,40 @@ fun CreateAccountScreen(
             }
         }
     }
+
+    if (showWifiListDialog) {
+        AlertDialog(
+            onDismissRequest = { showWifiListDialog = false },
+            title = { Text("Available Wi-Fi Networks") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    if (availableWifiList.isEmpty()) {
+                        Text("No networks found. Ensure Location is enabled.")
+                    } else {
+                        availableWifiList.forEach { network ->
+                            TextButton(onClick = {
+                                ssid = network
+                                showWifiListDialog = false
+                            }) {
+                                Text(network)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showWifiListDialog = false }) { Text("Close") }
+            }
+        )
+    }
 }
 
-// Password generator function
 private fun generateStrongPassword(): String {
     val uppercase = ('A'..'Z').toList()
     val lowercase = ('a'..'z').toList()
     val digits = ('0'..'9').toList()
     val specials = listOf('!', '@', '#', '$', '%', '^', '&', '*', '(', ')')
 
-    uppercase + lowercase + digits + specials
     val passwordLength = 16
 
     return (1..passwordLength).map {

@@ -65,6 +65,17 @@ dependencies {
     implementation(libs.androidx.fragment.ktx)
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
 
+    // ML Kit & CameraX
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    val camerax_version = "1.3.3"
+    implementation("androidx.camera:camera-core:$camerax_version")
+    implementation("androidx.camera:camera-camera2:$camerax_version")
+    implementation("androidx.camera:camera-lifecycle:$camerax_version")
+    implementation("androidx.camera:camera-view:$camerax_version")
+    
+    // Accompanist Permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.35.0-alpha")
+
     // Test dependencies
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

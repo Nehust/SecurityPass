@@ -132,7 +132,7 @@ class MainActivity : FragmentActivity() {
                     ) {
                         NavHost(navController, startDestination = "home") {
                             composable("home") {
-                                DashboardScreen(navController = navController)
+                                DashboardScreen(navController = navController, accounts = accounts)
                             }
 
                             composable("createAccount") {

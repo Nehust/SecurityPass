@@ -15,7 +15,7 @@
 
 ### B. Nhóm tính năng tự động hóa (Mới)
 - 🤖 **Credential Manager Integration:** Sử dụng API mới nhất của Android để thay thế Autofill Framework cũ, cho phép lưu và điền mật khẩu Google, App và Web.
-- 📶 **Wifi & Network Vault:** Danh mục riêng để lưu thông tin Wi-Fi (SSID, Password, Security Type). *(Lưu ý: Do chính sách bảo mật Android, app chỉ lưu những gì người dùng nhập vào, không tự ý quét pass hệ thống).*
+- 📶 **Wifi & Network Vault (Scan-to-Save):** Danh mục riêng lưu thông tin Wi-Fi. Tích hợp quét QR Code chia sẻ Wi-Fi (Google ML Kit) và quét danh sách mạng đang phát sóng (`WifiManager` - Requires Location) để tự động điền thông tin. Cung cấp tính năng kết nối mạng trực tiếp từ App thông qua `WifiNetworkSuggestion`/`WifiNetworkSpecifier`.
 - 🪄 **Auto-Suggestion:** Đề xuất mật khẩu mạnh (Strong Password Generator) khi người dùng tạo tài khoản mới.
 - ⚡ **Quick Fill Service:** Tự động nhận diện ô nhập liệu (Input Field) và hiển thị gợi ý ngay trên bàn phím.
 
@@ -28,6 +28,7 @@
 | **Automation** | Credential Manager API, Autofill Service API |
 | **Storage** | Room Database (Encrypted), EncryptedSharedPreferences |
 | **Architecture** | MVVM (Model-View-ViewModel) |
+| **Computer Vision**| Google ML Kit (Barcode/Vision API) & CameraX |
 
 ## 🧠 4. Cấu trúc logic & Luồng dữ liệu (Logic Flow)
 
