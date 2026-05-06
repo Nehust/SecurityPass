@@ -1,81 +1,57 @@
-# Project Summary: SecurePass (Password Manager)
+# 🛡️ Project Summary: SecurePass
 
-Tài liệu này tổng hợp cấu trúc, tính năng và luồng hoạt động của dự án SecurePass để hỗ trợ việc phát triển và bảo trì.
+Tài liệu này là nguồn "Single Source of Truth" để theo dõi cấu trúc, tính năng, và trạng thái phát triển của dự án SecurePass. **File này phải được cập nhật ngay sau khi hoàn thành bất kỳ tính năng mới nào.**
 
-## 1. Thông tin chung
+## 1. 📌 Thông tin chung
 - **Tên dự án:** SecurePass (Password Manager)
 - **Ngôn ngữ:** Kotlin
-- **UI Framework:** Jetpack Compose
+- **UI Framework:** Jetpack Compose (Material Design 3)
+- **Thiết bị Test thực tế:** Android Realme V15 5G
 - **Thư viện chính:** Biometric, DataStore/SharedPreferences, Navigation Compose, Security-Crypto, GSON.
 
-## 2. Cấu trúc thư mục (File Structure)
+## 2. 🤖 Chỉ dẫn cho AI (AI Agent Instructions)
+- **Tối ưu Token:** Tuyệt đối **BỎ QUA** việc đọc các file `.gradle`, `.idea`, hoặc thư mục `build` trừ khi gặp lỗi build cụ thể. Tập trung 100% vào code logic (Kotlin) và UI (Compose).
+- **Cập nhật liên tục:** Bắt buộc cập nhật file `PROJECT_SUMMARY.md` này ngay sau khi code xong và test thành công một tính năng mới, nhằm giữ context cho các phiên làm việc sau.
+- **Testing:** Người dùng sẽ chủ động test app trực tiếp trên máy thật (Realme V15 5G) thông qua ADB và cung cấp feedback nếu có lỗi. AI cần chờ feedback sau mỗi lần deploy tính năng lớn.
 
+## 3. 📂 Cấu trúc thư mục (File Structure)
 ```text
 app/src/main/java/com/example/passwordmanager/
-├── MainActivity.kt                # Điểm khởi đầu, quản lý NavHost và trạng thái khóa/mở khóa.
+├── MainActivity.kt                # Quản lý NavHost, Lifecycle (Auto-lock), và trạng thái khóa.
 ├── data/
-│   ├── Account.kt                 # Data class đại diện cho một tài khoản (Name, User, Pass, Notes).
-│   └── EncryptionHelper.kt        # Xử lý mã hóa và lưu trữ dữ liệu vào SharedPreferences.
+│   ├── Account.kt                 # Data model: Account (Name, Password).
+│   └── EncryptionHelper.kt        # Core: Mã hóa AES-256 GCM và lưu bằng EncryptedFile/Keystore.
 ├── ui/
-│   ├── DashboardScreen.kt         # Màn hình chính danh sách tài khoản.
-│   ├── CreateAccountScreen.kt     # Màn hình thêm mới hoặc chỉnh sửa tài khoản.
-│   ├── LockScreen.kt              # Giao diện khi app bị khóa (chờ vân tay).
-│   ├── PasswordFallbackScreen.kt  # Giao diện nhập Master Password khi không dùng sinh trắc học.
-│   ├── SettingsDialog.kt          # (Cũ/Phụ) Dialog cài đặt.
-│   ├── AccountItem.kt             # Thành phần UI hiển thị một dòng tài khoản.
-│   ├── FloatingAddButton.kt       # Nút thêm nhanh.
-│   ├── HomeScreen.kt              # (Có thể là file cũ hoặc đang tích hợp).
-│   ├── theme/                     # Cấu hình màu sắc, kiểu chữ (Material3).
+│   ├── DashboardScreen.kt         # Màn hình chính hiển thị danh sách mật khẩu.
+│   ├── CreateAccountScreen.kt     # Form thêm/sửa tài khoản & Nút Auto-Suggestion (Tạo Pass mạnh).
+│   ├── LockScreen.kt              # Màn hình chờ quét sinh trắc học.
+│   ├── PasswordFallbackScreen.kt  # Màn hình nhập Master Password khi sinh trắc thất bại.
+│   ├── SettingsDialog.kt          # Dialog Cài đặt (Bảo mật, Xóa data, Import/Export).
+│   ├── AccountItem.kt             # UI Item cho mỗi dòng tài khoản (có nút Ẩn/Hiện pass).
 │   └── security/
-│       └── SecurityManager.kt     # Quản lý Logic xác thực Biometric Prompt.
+│       └── SecurityManager.kt     # Lõi xử lý xác thực Biometric Class 3 (Vân tay/Khuôn mặt).
 ```
 
-## 3. Các tính năng hiện tại (Features)
+## 4. 🚀 Trạng thái tính năng (Feature Status)
 
-1.  **Xác thực sinh trắc học (Biometric):** 
-    *   Tích hợp `BiometricPrompt` với tiêu chuẩn **Class 3 (Strong)**.
-    *   Hỗ trợ cả Vân tay và Khuôn mặt (tùy theo phần cứng thiết bị).
-    *   Xử lý phân loại lỗi: Phân biệt giữa người dùng hủy, nhập sai quá nhiều lần (Lockout), và chọn dùng mật khẩu dự phòng.
-    *   Tối ưu trải nghiệm: Face Unlock không yêu cầu xác nhận thêm (Confirmation Required = false).
-2.  **Mật khẩu dự phòng (Fallback):** 
-    *   Cung cấp màn hình `PasswordFallbackScreen` khi sinh trắc học không khả dụng hoặc bị lỗi.
-    *   (Lưu ý: Hiện tại đang dùng pass mặc định "1234", cần tích hợp vào EncryptedSharedPreferences ở bước tiếp theo).
-3.  **Tự động khóa (Auto-lock):** Ứng dụng tự động khóa khi người dùng thoát ra màn hình Home hoặc chuyển sang ứng dụng khác (Lifecycle Observer).
-4.  **Quản lý mật khẩu:**
-    *   Thêm mới tài khoản.
-    *   Sửa thông tin tài khoản hiện có.
-    *   Xóa tài khoản.
-    *   Ẩn/Hiện mật khẩu trong danh sách.
-5.  **Bảo mật dữ liệu:** Dữ liệu được mã hóa trước khi lưu xuống bộ nhớ (thông qua `EncryptionHelper`).
-6.  **Cài đặt:**
-    *   Bật/Tắt bảo mật.
-    *   Xóa toàn bộ dữ liệu.
-    *   Import/Export dữ liệu (đang phát triển/cơ bản).
-7.  **Chống chụp màn hình:** Hỗ trợ `FLAG_SECURE` để ngăn chụp hoặc quay màn hình (hiện đang comment trong `MainActivity`).
+### ✅ Đã hoàn thiện
+1. **Xác thực sinh trắc học (Biometric):** Class 3 (Strong) bằng vân tay/khuôn mặt.
+2. **Lưu trữ bảo mật:** Mã hóa AES-256 GCM + Keystore (EncryptedFile).
+3. **Quản lý Vòng đời (Auto-lock):** App tự khóa khi rơi vào trạng thái `ON_STOP`.
+4. **Quản lý mật khẩu:** Thêm, sửa, xóa, ẩn/hiện mật khẩu.
+5. **Gợi ý mật khẩu mạnh (Auto-Suggestion):** Nút tạo pass ngẫu nhiên trong form thêm mới.
 
-## 4. Luồng hoạt động chính (Flow)
+### ⏳ Đang phát triển / Chưa làm
+1. **Credential Manager Integration:** (Ưu tiên cao) - Đăng ký app làm Autofill Service để tự động điền pass cho ứng dụng/trình duyệt khác.
+2. **Master Password Fallback:** Hiện tại pass dự phòng đang fix cứng `"1234"`. Cần nâng cấp cho phép người dùng tự đặt và mã hóa lưu lại.
+3. **Chống chụp màn hình (Anti-Screenshot):** Đã có code `FLAG_SECURE` nhưng đang bị comment lại trong `MainActivity`.
+4. **Wifi & Network Vault:** Thêm Data class và UI riêng để lưu SSID/Pass Wifi.
+5. **Quick Fill Service:** Nhận diện ô nhập liệu để hiển thị gợi ý trên bàn phím.
 
-### A. Luồng khởi động & Mở khóa:
-1.  `MainActivity` kiểm tra `SecurityManager.isSecurityEnabled()`.
-2.  Nếu **Bật**: Hiển thị `LockScreen` -> Tự động gọi `BiometricPrompt`.
-    *   **Thành công:** `isUnlocked = true` -> Load dữ liệu -> Vào `DashboardScreen`.
-    *   **Thất bại/Hủy:** Người dùng chọn "Sử dụng Master Password" -> Hiện `PasswordFallbackScreen`.
-3.  Nếu **Tắt**: Vào thẳng `DashboardScreen`.
-
-### B. Luồng bảo mật Lifecycle:
-1.  Khi App rơi vào trạng thái `ON_STOP` (vào nền):
-    *   Nếu bảo mật đang bật: Đặt `isUnlocked = false`.
-2.  Khi App quay lại `ON_RESUME`:
-    *   Nếu `isUnlocked == false`: Yêu cầu xác thực lại từ đầu.
-
-### C. Luồng dữ liệu:
-*   **Lưu:** `Account` -> GSON -> Encrypted String -> SharedPreferences.
-*   **Đọc:** Encrypted String -> Decrypted String -> GSON -> `List<Account>`.
-
-## 5. Quy ước lập trình
-- Sử dụng `rememberSaveable` cho các trạng thái cần giữ lại khi xoay màn hình hoặc hệ thống tạm dừng.
-- `SecurityManager` yêu cầu `FragmentActivity` để quản lý `BiometricPrompt`.
-- UI tuân thủ Material Design 3.
+## 5. 🔄 Luồng hoạt động (Core Flow)
+- **Mở App:** `MainActivity` -> Kiểm tra `SecurityManager.isSecurityEnabled()` -> Gọi `BiometricPrompt` -> Thành công -> `DashboardScreen`.
+- **Background/Foreground:** Ẩn app xuống nền -> `ON_STOP` -> `isUnlocked = false`. Mở lại app -> Yêu cầu quét lại sinh trắc.
+- **Lưu/Đọc Data:** `Account` <-> GSON <-> AES-256 Encrypted String <-> `EncryptedFile`.
 
 ---
-*Cập nhật lần cuối: 24/05/2024*
+*Cập nhật lần cuối: Chuẩn bị phát triển tính năng Autofill*
