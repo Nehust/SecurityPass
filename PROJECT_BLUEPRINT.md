@@ -9,7 +9,7 @@
 
 ### A. Nhóm tính năng cốt lõi (Đã có)
 - **Biometric Auth:** Mở khóa app bằng vân tay/khuôn mặt.
-- **Master Password Fallback:** Màn hình nhập pass dự phòng khi sinh trắc học lỗi.
+- **Device Credential Fallback:** Sử dụng Mật khẩu/Mã PIN/Pattern khóa màn hình gốc của thiết bị khi sinh trắc học lỗi hoặc không khả dụng.
 - **Anti-Screenshot:** Chống chụp màn hình bằng `FLAG_SECURE`.
 - **Lưu trữ mật khẩu:** Sử dụng các phương pháp lưu trữ hiện đại được cung cấp bởi Android.
 

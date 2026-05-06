@@ -54,7 +54,6 @@ class MainActivity : FragmentActivity() {
                 val accounts = remember { mutableStateListOf<Account>() }
                 var isUnlocked by rememberSaveable { mutableStateOf(!securityManager.isSecurityEnabled()) }
                 var isDataLoaded by remember { mutableStateOf(false) }
-                var showPasswordFallback by rememberSaveable { mutableStateOf(false) }
 
                 // -----------------------------------------------------------
                 // 3. XỬ LÝ LIFECYCLE (Tự động khóa app khi ẩn xuống nền)
@@ -65,7 +64,6 @@ class MainActivity : FragmentActivity() {
                             if (securityManager.isSecurityEnabled()) {
                                 isUnlocked = false
                                 isDataLoaded = false
-                                // Lưu ý: Không reset showPasswordFallback ở đây để giữ màn hình nhập pass
                             }
                         }
                     }
@@ -77,15 +75,14 @@ class MainActivity : FragmentActivity() {
                 // 4. SIDE EFFECTS (Tự động kích hoạt quét sinh trắc học)
                 // -----------------------------------------------------------
 
-                // Tự động gọi quét mặt khi showPasswordFallback chuyển từ true -> false (nút Thử lại)
-                LaunchedEffect(showPasswordFallback, isUnlocked) {
-                    if (!isUnlocked && !showPasswordFallback && securityManager.isSecurityEnabled()) {
+                // Tự động gọi quét sinh trắc học hoặc nhập PIN
+                LaunchedEffect(isUnlocked) {
+                    if (!isUnlocked && securityManager.isSecurityEnabled()) {
                         delay(500) // Tăng delay một chút để UI ổn định hoàn toàn
                         securityManager.authenticate(
                             onSuccess = { isUnlocked = true },
-                            onRequirePassword = { showPasswordFallback = true },
                             onError = { error ->
-                                if (error != "Xác thực đã bị hủy") {
+                                if (!error.contains("hủy", ignoreCase = true)) {
                                     Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
                                 }
                             }
@@ -121,23 +118,12 @@ class MainActivity : FragmentActivity() {
                 // -----------------------------------------------------------
                 if (!isUnlocked && securityManager.isSecurityEnabled()) {
                     // Màn hình Khóa
-                    if (showPasswordFallback) {
-                        PasswordFallbackScreen(
-                            onPasswordCorrect = {
-                                isUnlocked = true
-                                showPasswordFallback = false
-                            },
-                            onCancel = { showPasswordFallback = false }
+                    LockScreen(onUnlockRequested = {
+                        securityManager.authenticate(
+                            onSuccess = { isUnlocked = true },
+                            onError = { }
                         )
-                    } else {
-                        LockScreen(onUnlockRequested = {
-                            securityManager.authenticate(
-                                onSuccess = { isUnlocked = true },
-                                onRequirePassword = { showPasswordFallback = true },
-                                onError = { }
-                            )
-                        })
-                    }
+                    })
                 } else {
                     // Màn hình chính sau khi mở khóa
                     Scaffold(

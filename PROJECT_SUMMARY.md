@@ -24,8 +24,7 @@ app/src/main/java/com/example/passwordmanager/
 ├── ui/
 │   ├── DashboardScreen.kt         # Màn hình chính hiển thị danh sách mật khẩu.
 │   ├── CreateAccountScreen.kt     # Form thêm/sửa tài khoản & Nút Auto-Suggestion (Tạo Pass mạnh).
-│   ├── LockScreen.kt              # Màn hình chờ quét sinh trắc học.
-│   ├── PasswordFallbackScreen.kt  # Màn hình nhập Master Password khi sinh trắc thất bại.
+│   ├── LockScreen.kt              # Màn hình chờ quét sinh trắc học (Có tích hợp fallback nhập PIN máy).
 │   ├── SettingsDialog.kt          # Dialog Cài đặt (Bảo mật, Xóa data, Import/Export).
 │   ├── AccountItem.kt             # UI Item cho mỗi dòng tài khoản (có nút Ẩn/Hiện pass).
 │   └── security/
@@ -35,7 +34,7 @@ app/src/main/java/com/example/passwordmanager/
 ## 4. 🚀 Trạng thái tính năng (Feature Status)
 
 ### ✅ Đã hoàn thiện
-1. **Xác thực sinh trắc học (Biometric):** Class 3 (Strong) bằng vân tay/khuôn mặt.
+1. **Xác thực sinh trắc học (Biometric & Device Credential):** Class 3 (Strong) bằng vân tay/khuôn mặt. Khi thất bại, tự động chuyển sang xác thực bằng Mật khẩu/PIN khóa màn hình của thiết bị.
 2. **Lưu trữ bảo mật:** Mã hóa AES-256 GCM + Keystore (EncryptedFile).
 3. **Quản lý Vòng đời (Auto-lock):** App tự khóa khi rơi vào trạng thái `ON_STOP`.
 4. **Quản lý mật khẩu:** Thêm, sửa, xóa, ẩn/hiện mật khẩu.
@@ -43,10 +42,9 @@ app/src/main/java/com/example/passwordmanager/
 
 ### ⏳ Đang phát triển / Chưa làm
 1. **Credential Manager Integration:** (Ưu tiên cao) - Đăng ký app làm Autofill Service để tự động điền pass cho ứng dụng/trình duyệt khác.
-2. **Master Password Fallback:** Hiện tại pass dự phòng đang fix cứng `"1234"`. Cần nâng cấp cho phép người dùng tự đặt và mã hóa lưu lại.
-3. **Chống chụp màn hình (Anti-Screenshot):** Đã có code `FLAG_SECURE` nhưng đang bị comment lại trong `MainActivity`.
-4. **Wifi & Network Vault:** Thêm Data class và UI riêng để lưu SSID/Pass Wifi.
-5. **Quick Fill Service:** Nhận diện ô nhập liệu để hiển thị gợi ý trên bàn phím.
+2. **Chống chụp màn hình (Anti-Screenshot):** Đã có code `FLAG_SECURE` nhưng đang bị comment lại trong `MainActivity`.
+3. **Wifi & Network Vault:** Thêm Data class và UI riêng để lưu SSID/Pass Wifi.
+4. **Quick Fill Service:** Nhận diện ô nhập liệu để hiển thị gợi ý trên bàn phím.
 
 ## 5. 🔄 Luồng hoạt động (Core Flow)
 - **Mở App:** `MainActivity` -> Kiểm tra `SecurityManager.isSecurityEnabled()` -> Gọi `BiometricPrompt` -> Thành công -> `DashboardScreen`.

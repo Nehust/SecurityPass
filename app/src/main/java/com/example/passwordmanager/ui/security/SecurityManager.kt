@@ -21,9 +21,9 @@ class SecurityManager(private val activity: FragmentActivity) {
 
     fun isBiometricReady(): Boolean {
         val biometricManager = BiometricManager.from(activity)
-        // SỬA: Chấp nhận cả STRONG (Vân tay) và WEAK (FaceID của Realme V15)
         val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                BiometricManager.Authenticators.BIOMETRIC_WEAK
+                BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL
 
         val canAuthenticateResult = biometricManager.canAuthenticate(authenticators)
 
@@ -39,7 +39,6 @@ class SecurityManager(private val activity: FragmentActivity) {
 
     fun authenticate(
         onSuccess: () -> Unit,
-        onRequirePassword: () -> Unit,
         onError: (String) -> Unit
     ) {
         val biometricPrompt = BiometricPrompt(activity, executor,
@@ -51,23 +50,18 @@ class SecurityManager(private val activity: FragmentActivity) {
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
-                    if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
-                        onRequirePassword()
-                    } else {
-                        onError(errString.toString())
-                    }
+                    onError(errString.toString())
                 }
             })
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle("Mở khóa SecurePass")
             .setSubtitle("Xác nhận danh tính")
-            // SỬA: Cho phép cả khuôn mặt 2D của máy Realme bằng cách thêm BIOMETRIC_WEAK
             .setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                        BiometricManager.Authenticators.BIOMETRIC_WEAK
+                        BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL
             )
-            .setNegativeButtonText("Dùng Master Password")
             .build()
 
         biometricPrompt.authenticate(promptInfo)
