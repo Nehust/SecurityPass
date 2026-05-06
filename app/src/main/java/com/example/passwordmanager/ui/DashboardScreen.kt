@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -86,72 +87,28 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
                         .padding(bottom = 24.dp)
                 )
 
+                val wifiCount = accounts.count { it.getType() == com.example.passwordmanager.data.AccountType.WIFI }
+                val loginCount = accounts.count { it.getType() == com.example.passwordmanager.data.AccountType.LOGIN }
+                val allCount = accounts.size
+
                 // Grid Menu
                 val cardItems = listOf(
-                    GridCardItem(Icons.Filled.Key, Color(0xFF007AFF), "All", 25),
-                    GridCardItem(Icons.Filled.Person, Color(0xFF34C759), "Passkeys", 3),
-                    GridCardItem(Icons.Filled.Lock, Color(0xFFFFCC00), "Codes", 1),
-                    GridCardItem(Icons.Filled.Wifi, Color(0xFF32ADE6), "WLAN", 167),
-                    GridCardItem(Icons.Filled.Warning, Color(0xFFFF3B30), "Security", 13),
-                    GridCardItem(Icons.Filled.Delete, Color(0xFFFF9500), "Deleted", 0)
+                    GridCardItem(Icons.Filled.Key, Color(0xFF007AFF), "All", allCount),
+                    GridCardItem(Icons.Filled.Wifi, Color(0xFF32ADE6), "WLAN", wifiCount),
+                    GridCardItem(Icons.Filled.Language, Color(0xFF34C759), "Web/App", loginCount),
+                    GridCardItem(Icons.Filled.Warning, Color(0xFFFF3B30), "Security", 0)
                 )
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     items(cardItems) { item ->
-                        GridCard(item = item)
+                        GridCard(item = item, onClick = { navController.navigate("category/${item.title}") })
                     }
-                }
-
-                // Accounts List Section
-                Text(
-                    text = "MY ACCOUNTS",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.padding(top = 16.dp, bottom = 12.dp)
-                )
-
-                val context = LocalContext.current
-                var deletingAccount by remember { mutableStateOf<Account?>(null) }
-                var searchQuery by remember { mutableStateOf("") } // Basic search state
-
-                val filteredAccounts = accounts.filter {
-                    it.getName().contains(searchQuery, ignoreCase = true) || 
-                    it.getSsid().contains(searchQuery, ignoreCase = true)
-                }
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f)
-                ) {
-                    items(filteredAccounts) { account ->
-                        AccountItem(
-                            account = account,
-                            context = context,
-                            onEdit = { accountToEdit ->
-                                val name = if (accountToEdit.getType() == com.example.passwordmanager.data.AccountType.WIFI) accountToEdit.getSsid() else accountToEdit.getName()
-                                navController.navigate("createAccount/$name")
-                            },
-                            onDelete = { deletingAccount = it }
-                        )
-                    }
-                }
-
-                deletingAccount?.let { account ->
-                    DeleteAccountDialog(
-                        account = account,
-                        onDismiss = { deletingAccount = null },
-                        onDelete = {
-                            accounts.remove(account)
-                            deletingAccount = null
-                            com.example.passwordmanager.data.EncryptionHelper.saveAccounts(context, accounts)
-                        }
-                    )
                 }
             }
         }
@@ -159,12 +116,12 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
 }
 
 @Composable
-fun GridCard(item: GridCardItem) {
+fun GridCard(item: GridCardItem, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }
     ) {
         Row(
             modifier = Modifier

@@ -52,7 +52,8 @@ fun AccountItem(
     account: Account,
     context: Context,
     onEdit: (Account) -> Unit,
-    onDelete: (Account) -> Unit
+    onDelete: (Account) -> Unit,
+    onAuthenticate: ((onSuccess: () -> Unit) -> Unit)? = null
 ) {
     var isPasswordVisible by remember { mutableStateOf(false) }
     var offsetX by remember { mutableFloatStateOf(0f) }
@@ -126,12 +127,34 @@ fun AccountItem(
                             )
                         }
                         .combinedClickable(
-                            onClick = { isPasswordVisible = !isPasswordVisible },
+                            onClick = {
+                                if (!isPasswordVisible) {
+                                    if (onAuthenticate != null) {
+                                        onAuthenticate { isPasswordVisible = true }
+                                    } else {
+                                        isPasswordVisible = true
+                                    }
+                                } else {
+                                    isPasswordVisible = false
+                                }
+                            },
                             onLongClick = {
-                                if (isPasswordVisible) {
+                                val copyAction = {
                                     val clip = android.content.ClipData.newPlainText("Password", account.getPassword())
                                     clipboardManager.setPrimaryClip(clip)
                                     Toast.makeText(context, "Password copied to clipboard", Toast.LENGTH_SHORT).show()
+                                }
+                                if (!isPasswordVisible) {
+                                    if (onAuthenticate != null) {
+                                        onAuthenticate {
+                                            isPasswordVisible = true
+                                            copyAction()
+                                        }
+                                    } else {
+                                        copyAction()
+                                    }
+                                } else {
+                                    copyAction()
                                 }
                             }
                         )

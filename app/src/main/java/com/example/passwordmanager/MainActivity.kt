@@ -135,6 +135,25 @@ class MainActivity : FragmentActivity() {
                                 DashboardScreen(navController = navController, accounts = accounts)
                             }
 
+                            composable("category/{categoryName}") { backStackEntry ->
+                                val categoryName = backStackEntry.arguments?.getString("categoryName") ?: "All"
+                                CategoryScreen(
+                                    navController = navController,
+                                    categoryName = categoryName,
+                                    accounts = accounts,
+                                    onAuthenticate = { onSuccess ->
+                                        securityManager.authenticate(
+                                            onSuccess = onSuccess,
+                                            onError = { error ->
+                                                if (!error.contains("hủy", ignoreCase = true)) {
+                                                    Toast.makeText(this@MainActivity, error, Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        )
+                                    }
+                                )
+                            }
+
                             composable("createAccount") {
                                 CreateAccountScreen(
                                     navController = navController,
