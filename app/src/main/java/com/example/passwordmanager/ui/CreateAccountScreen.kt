@@ -441,7 +441,117 @@ fun CreateAccountScreen(
                 }
             }
 
+            if (isEditMode) {
+                Spacer(modifier = Modifier.height(24.dp))
+                var showDeleteDialog by remember { mutableStateOf(false) }
+                var showPermanentDeleteDialog by remember { mutableStateOf(false) }
+
+                val isDeleted = existingAccount?.getDeleted() == true
+
+                if (isDeleted) {
+                    // Recover Button
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(50.dp)
+                            .clickable { 
+                                existingAccount.setDeleted(false)
+                                EncryptionHelper.saveAccounts(context, accounts)
+                                navController.popBackStack()
+                            }
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Recover Password", color = Color(0xFF0A84FF), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Delete Permanently Button
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(50.dp)
+                            .clickable { showPermanentDeleteDialog = true }
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Delete Permanently", color = Color(0xFFFF453A), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                } else {
+                    // Soft Delete Button
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(50.dp)
+                            .clickable { showDeleteDialog = true }
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Delete Password", color = Color(0xFFFF453A), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
+                if (showDeleteDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showDeleteDialog = false },
+                        title = { Text("Delete Password", color = Color.White) },
+                        text = { Text("This password will be moved to the Deleted folder. You can recover it later.", color = Color.Gray) },
+                        containerColor = Color(0xFF1C1C1E),
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showDeleteDialog = false
+                                existingAccount?.setDeleted(true)
+                                EncryptionHelper.saveAccounts(context, accounts)
+                                navController.popBackStack()
+                            }) {
+                                Text("Delete", color = Color(0xFFFF453A), fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDeleteDialog = false }) {
+                                Text("Cancel", color = Color(0xFF0A84FF))
+                            }
+                        }
+                    )
+                }
+
+                if (showPermanentDeleteDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showPermanentDeleteDialog = false },
+                        title = { Text("Delete Permanently", color = Color.White) },
+                        text = { Text("Are you sure you want to permanently delete this password? This action cannot be undone.", color = Color.Gray) },
+                        containerColor = Color(0xFF1C1C1E),
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showPermanentDeleteDialog = false
+                                accounts.remove(existingAccount)
+                                EncryptionHelper.saveAccounts(context, accounts)
+                                navController.popBackStack()
+                            }) {
+                                Text("Delete", color = Color(0xFFFF453A), fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showPermanentDeleteDialog = false }) {
+                                Text("Cancel", color = Color(0xFF0A84FF))
+                            }
+                        }
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
+
         }
     }
 

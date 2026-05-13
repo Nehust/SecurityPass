@@ -14,7 +14,8 @@ class Account(
     private var ssid: String = "",
     private var securityType: String = "WPA", // WPA, WEP, NONE
     private var packageName: String = "",
-    private var domain: String = ""
+    private var domain: String = "",
+    private var isDeleted: Boolean = false
 ) : Serializable {
     fun setName(name: String) { this.name = name }
     fun getName(): String = name
@@ -36,4 +37,7 @@ class Account(
 
     fun setDomain(domain: String) { this.domain = domain }
     fun getDomain(): String = domain
+
+    fun setDeleted(deleted: Boolean) { this.isDeleted = deleted }
+    fun getDeleted(): Boolean = isDeleted
 }

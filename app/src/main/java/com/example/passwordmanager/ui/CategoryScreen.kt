@@ -35,9 +35,10 @@ fun CategoryScreen(
     
     val filteredAccounts = accounts.filter {
         val matchesCategory = when (categoryName.uppercase()) {
-            "WLAN" -> it.getType() == AccountType.WIFI
-            "WEB/APP" -> it.getType() == AccountType.LOGIN
-            "ALL" -> true
+            "WLAN" -> it.getType() == AccountType.WIFI && !it.getDeleted()
+            "WEB/APP" -> it.getType() == AccountType.LOGIN && !it.getDeleted()
+            "ALL" -> !it.getDeleted()
+            "DELETED" -> it.getDeleted()
             else -> false
         }
         val matchesSearch = it.getName().contains(searchQuery, ignoreCase = true) || it.getSsid().contains(searchQuery, ignoreCase = true)

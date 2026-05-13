@@ -95,9 +95,10 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
                     .padding(bottom = 16.dp)
             )
 
-            val wifiCount = accounts.count { it.getType() == AccountType.WIFI }
-            val loginCount = accounts.count { it.getType() == AccountType.LOGIN }
-            val allCount = accounts.size
+            val wifiCount = accounts.count { it.getType() == AccountType.WIFI && !it.getDeleted() }
+            val loginCount = accounts.count { it.getType() == AccountType.LOGIN && !it.getDeleted() }
+            val allCount = accounts.count { !it.getDeleted() }
+            val deletedCount = accounts.count { it.getDeleted() }
 
             // Grid Menu
             val cardItems = listOf(
@@ -106,7 +107,7 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
                 GridCardItem(Icons.Filled.LockClock, Color(0xFFFFD60A), "Codes", 0),
                 GridCardItem(Icons.Filled.Wifi, Color(0xFF32ADE6), "WLAN", wifiCount),
                 GridCardItem(Icons.Filled.Language, Color(0xFFBF5AF2), "Web", loginCount), // Dùng chung count với App tạm thời
-                GridCardItem(Icons.Filled.Apps, Color(0xFFFF453A), "App", 0) 
+                GridCardItem(Icons.Filled.Delete, Color(0xFFFF9F0A), "Deleted", deletedCount) 
             )
 
             // Dùng Column/Row thủ công để không bị scroll
@@ -121,7 +122,12 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
                     ) {
                         Box(modifier = Modifier.weight(1f)) {
                             GridCard(item = cardItems[i], onClick = {
-                                val routeName = if (cardItems[i].title == "All") "All" else if (cardItems[i].title == "WLAN") "WLAN" else "WEB/APP"
+                                val routeName = when (cardItems[i].title) {
+                                    "All" -> "All"
+                                    "WLAN" -> "WLAN"
+                                    "Deleted" -> "Deleted"
+                                    else -> "WEB/APP"
+                                }
                                 val safeName = java.net.URLEncoder.encode(routeName, "UTF-8")
                                 navController.navigate("category/$safeName")
                             })
@@ -129,7 +135,12 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
                         Box(modifier = Modifier.weight(1f)) {
                             if (i + 1 < cardItems.size) {
                                 GridCard(item = cardItems[i + 1], onClick = {
-                                    val routeName = if (cardItems[i + 1].title == "All") "All" else if (cardItems[i + 1].title == "WLAN") "WLAN" else "WEB/APP"
+                                    val routeName = when (cardItems[i + 1].title) {
+                                        "All" -> "All"
+                                        "WLAN" -> "WLAN"
+                                        "Deleted" -> "Deleted"
+                                        else -> "WEB/APP"
+                                    }
                                     val safeName = java.net.URLEncoder.encode(routeName, "UTF-8")
                                     navController.navigate("category/$safeName")
                                 })
