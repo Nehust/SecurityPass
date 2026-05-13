@@ -37,12 +37,16 @@ app/src/main/java/com/example/passwordmanager/
 1. **Xác thực sinh trắc học (Biometric & Device Credential):** Class 3 (Strong) bằng vân tay/khuôn mặt. Khi thất bại, tự động chuyển sang xác thực bằng Mật khẩu/PIN khóa màn hình của thiết bị.
 2. **Lưu trữ bảo mật:** Mã hóa AES-256 GCM + Keystore (EncryptedFile).
 3. **Quản lý Vòng đời (Auto-lock):** App tự khóa khi rơi vào trạng thái `ON_STOP`.
-4. **Quản lý mật khẩu:** Thêm, sửa, xóa, ẩn/hiện mật khẩu.
-5. **Gợi ý mật khẩu mạnh (Auto-Suggestion):** Nút tạo pass ngẫu nhiên trong form thêm mới.
-6. **Autofill Service (Đã cải thiện):** Tự động điền mật khẩu trên các app/web khác và gợi ý lưu mật khẩu mới. Tích hợp quét vân tay/khuôn mặt trước khi điền. Đã cải thiện:
-   - **Phát hiện trường nâng cao:** Hỗ trợ phát hiện username/password field tốt hơn với từ khóa tiếng Việt và tiếng Anh
-   - **Khớp thông minh:** Ưu tiên theo package name, sau đó theo domain, cuối cùng theo thứ tự bảng chữ cái
-   - **Hỗ trợ HTML:** Phát hiện tốt hơn các trường trong WebView với placeholder, name, id attributes
+4. **Quản lý mật khẩu:** Thêm, sửa, ẩn/hiện mật khẩu.
+5. **Thùng rác (Recycle Bin):** Tính năng Soft Delete (chuyển vào mục Deleted), hỗ trợ Khôi phục (Recover) hoặc Xóa vĩnh viễn (Delete Permanently).
+6. **Phân loại Thông minh:** Tự động phân tách danh mục Web và App dựa trên Package Name hoặc URL Domain.
+7. **Gợi ý mật khẩu mạnh (Auto-Suggestion):** Nút tạo pass ngẫu nhiên trong form thêm mới.
+8. **Autofill Service (Native & Smart):** Tự động điền mật khẩu trên các app/web khác và gợi ý lưu mật khẩu mới. Tích hợp quét vân tay/khuôn mặt trước khi điền. Đã cải thiện:
+   - **Phát hiện trường nâng cao:** Hỗ trợ phát hiện username/password field tốt hơn với từ khóa tiếng Việt và tiếng Anh.
+   - **Khớp thông minh:** Ưu tiên theo package name, sau đó theo domain, cuối cùng theo thứ tự bảng chữ cái.
+   - **Hiển thị nguồn gốc:** Giao diện hiển thị rõ nguồn gốc mật khẩu (App Package / Web Domain).
+   - **Tự động ghi đè (Auto-Update):** Nếu đăng nhập vào cùng ứng dụng với tài khoản đã có, tự động ghi đè/cập nhật mật khẩu mới thay vì tạo bản sao rác.
+   - **Hỗ trợ HTML:** Phát hiện tốt hơn các trường trong WebView với placeholder, name, id attributes.
 
 ### ⏳ Đang phát triển / Chưa làm
 1. **Chống chụp màn hình (Anti-Screenshot):** Đã có code `FLAG_SECURE` nhưng đang bị comment lại trong `MainActivity`.
