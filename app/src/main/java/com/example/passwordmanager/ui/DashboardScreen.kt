@@ -96,17 +96,18 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
             )
 
             val wifiCount = accounts.count { it.getType() == AccountType.WIFI && !it.getDeleted() }
-            val loginCount = accounts.count { it.getType() == AccountType.LOGIN && !it.getDeleted() }
+            val webCount = accounts.count { it.isWebAccount() && !it.getDeleted() }
+            val appCount = accounts.count { it.isAppAccount() && !it.getDeleted() }
             val allCount = accounts.count { !it.getDeleted() }
             val deletedCount = accounts.count { it.getDeleted() }
 
             // Grid Menu
             val cardItems = listOf(
                 GridCardItem(Icons.Filled.Key, Color(0xFF0A84FF), "All", allCount),
-                GridCardItem(Icons.Filled.Person, Color(0xFF30D158), "Passkeys", 0),
-                GridCardItem(Icons.Filled.LockClock, Color(0xFFFFD60A), "Codes", 0),
                 GridCardItem(Icons.Filled.Wifi, Color(0xFF32ADE6), "WLAN", wifiCount),
-                GridCardItem(Icons.Filled.Language, Color(0xFFBF5AF2), "Web", loginCount), // Dùng chung count với App tạm thời
+                GridCardItem(Icons.Filled.Language, Color(0xFFBF5AF2), "Web", webCount),
+                GridCardItem(Icons.Filled.Apps, Color(0xFFFF453A), "App", appCount),
+                GridCardItem(Icons.Filled.LockClock, Color(0xFFFFD60A), "Codes", 0),
                 GridCardItem(Icons.Filled.Delete, Color(0xFFFF9F0A), "Deleted", deletedCount) 
             )
 
@@ -125,8 +126,10 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
                                 val routeName = when (cardItems[i].title) {
                                     "All" -> "All"
                                     "WLAN" -> "WLAN"
+                                    "Web" -> "WEB"
+                                    "App" -> "APP"
                                     "Deleted" -> "Deleted"
-                                    else -> "WEB/APP"
+                                    else -> "Codes"
                                 }
                                 val safeName = java.net.URLEncoder.encode(routeName, "UTF-8")
                                 navController.navigate("category/$safeName")
@@ -138,8 +141,10 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
                                     val routeName = when (cardItems[i + 1].title) {
                                         "All" -> "All"
                                         "WLAN" -> "WLAN"
+                                        "Web" -> "WEB"
+                                        "App" -> "APP"
                                         "Deleted" -> "Deleted"
-                                        else -> "WEB/APP"
+                                        else -> "Codes"
                                     }
                                     val safeName = java.net.URLEncoder.encode(routeName, "UTF-8")
                                     navController.navigate("category/$safeName")

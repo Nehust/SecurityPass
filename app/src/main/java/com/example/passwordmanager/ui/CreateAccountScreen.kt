@@ -49,7 +49,7 @@ fun CreateAccountScreen(
     existingAccount: Account? = null,
     context: Context
 ) {
-    var accountType by remember { mutableStateOf(existingAccount?.getType() ?: AccountType.LOGIN) }
+    var accountType by remember { mutableStateOf(existingAccount?.getType() ?: AccountType.WEB) }
     var username by remember { mutableStateOf(existingAccount?.getName() ?: "") }
     var ssid by remember { mutableStateOf(existingAccount?.getSsid() ?: "") }
     var password by remember { mutableStateOf(existingAccount?.getPassword() ?: "") }
@@ -90,13 +90,13 @@ fun CreateAccountScreen(
     val saveAction = {
         keyboardController?.hide()
         if (existingAccount != null) {
-            if (accountType == AccountType.LOGIN) existingAccount.setName(username) else existingAccount.setSsid(ssid)
+            if (accountType != AccountType.WIFI) existingAccount.setName(username) else existingAccount.setSsid(ssid)
             existingAccount.setPassword(password)
             existingAccount.setSecurityType(securityType)
             existingAccount.setType(accountType)
         } else {
             val newAccount = Account().apply {
-                if (accountType == AccountType.LOGIN) setName(username) else setSsid(ssid)
+                if (accountType != AccountType.WIFI) setName(username) else setSsid(ssid)
                 setPassword(password)
                 setSecurityType(securityType)
                 setType(accountType)
@@ -170,7 +170,7 @@ fun CreateAccountScreen(
                             .background(Color(0xFF2C2C2E)),
                         contentAlignment = Alignment.Center
                     ) {
-                        val firstLetter = if (accountType == AccountType.LOGIN) {
+                        val firstLetter = if (accountType != AccountType.WIFI) {
                             if (username.isNotEmpty()) username.substring(0, 1).uppercase() else "?"
                         } else {
                             if (ssid.isNotEmpty()) ssid.substring(0, 1).uppercase() else "?"
@@ -209,21 +209,32 @@ fun CreateAccountScreen(
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
                 // Tab Selection for New Password
+                val selectedIndex = when (accountType) {
+                    AccountType.WEB, AccountType.LOGIN -> 0
+                    AccountType.APP -> 1
+                    AccountType.WIFI -> 2
+                }
+
                 TabRow(
-                    selectedTabIndex = if (accountType == AccountType.LOGIN) 0 else 1,
+                    selectedTabIndex = selectedIndex,
                     containerColor = Color.Transparent,
                     contentColor = Color.White,
                     divider = { }
                 ) {
                     Tab(
-                        selected = accountType == AccountType.LOGIN,
-                        onClick = { accountType = AccountType.LOGIN },
-                        text = { Text("Web/App", color = if (accountType == AccountType.LOGIN) Color(0xFF0A84FF) else Color.Gray) }
+                        selected = selectedIndex == 0,
+                        onClick = { accountType = AccountType.WEB },
+                        text = { Text("Web", color = if (selectedIndex == 0) Color(0xFF0A84FF) else Color.Gray) }
                     )
                     Tab(
-                        selected = accountType == AccountType.WIFI,
+                        selected = selectedIndex == 1,
+                        onClick = { accountType = AccountType.APP },
+                        text = { Text("App", color = if (selectedIndex == 1) Color(0xFF0A84FF) else Color.Gray) }
+                    )
+                    Tab(
+                        selected = selectedIndex == 2,
                         onClick = { accountType = AccountType.WIFI },
-                        text = { Text("Wi-Fi", color = if (accountType == AccountType.WIFI) Color(0xFF0A84FF) else Color.Gray) }
+                        text = { Text("Wi-Fi", color = if (selectedIndex == 2) Color(0xFF0A84FF) else Color.Gray) }
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -247,11 +258,11 @@ fun CreateAccountScreen(
                         ) {
                             Icon(Icons.Filled.Key, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(32.dp))
                             Spacer(modifier = Modifier.width(16.dp))
-                            if (accountType == AccountType.LOGIN) {
+                            if (accountType != AccountType.WIFI) {
                                 OutlinedTextField(
                                     value = username,
                                     onValueChange = { username = it },
-                                    placeholder = { Text("Website or Label", color = Color.Gray) },
+                                    placeholder = { Text(if (accountType == AccountType.APP) "App Name or Package" else "Website or Label", color = Color.Gray) },
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedContainerColor = Color.Transparent,
                                         unfocusedContainerColor = Color.Transparent,
@@ -291,8 +302,8 @@ fun CreateAccountScreen(
                             .padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(if (accountType == AccountType.LOGIN) "User Name" else "Security", color = Color.White, modifier = Modifier.width(100.dp))
-                        if (accountType == AccountType.LOGIN) {
+                        Text(if (accountType != AccountType.WIFI) "User Name" else "Security", color = Color.White, modifier = Modifier.width(100.dp))
+                        if (accountType != AccountType.WIFI) {
                             OutlinedTextField(
                                 value = username,
                                 onValueChange = { username = it },
@@ -429,7 +440,7 @@ fun CreateAccountScreen(
                 )
             }
             
-            if (accountType == AccountType.LOGIN && !isEditMode) {
+            if (accountType != AccountType.WIFI && !isEditMode) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
                     onClick = { password = generateStrongPassword() },

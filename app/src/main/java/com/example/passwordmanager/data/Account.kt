@@ -3,7 +3,9 @@ package com.example.passwordmanager.data
 import java.io.Serializable
 
 enum class AccountType {
-    LOGIN,
+    LOGIN, // Legacy
+    WEB,
+    APP,
     WIFI
 }
 
@@ -40,4 +42,16 @@ class Account(
 
     fun setDeleted(deleted: Boolean) { this.isDeleted = deleted }
     fun getDeleted(): Boolean = isDeleted
+
+    fun isAppAccount(): Boolean {
+        if (type == AccountType.APP) return true
+        if (type == AccountType.LOGIN && packageName.isNotEmpty() && !packageName.contains("chrome") && !packageName.contains("browser")) return true
+        return false
+    }
+
+    fun isWebAccount(): Boolean {
+        if (type == AccountType.WEB) return true
+        if (type == AccountType.LOGIN && !isAppAccount()) return true
+        return false
+    }
 }

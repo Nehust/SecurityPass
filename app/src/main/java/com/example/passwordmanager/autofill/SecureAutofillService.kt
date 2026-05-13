@@ -39,7 +39,7 @@ class SecureAutofillService : AutofillService() {
 
         // Improved matching: prioritize by package name, then by domain
         val matchedAccounts = accounts.filter {
-            it.getType() == AccountType.LOGIN
+            it.isWebAccount() || it.isAppAccount()
         }.sortedWith(compareByDescending<Account> { account ->
             // Exact package match gets highest priority
             account.getPackageName() == packageName
@@ -123,14 +123,29 @@ class SecureAutofillService : AutofillService() {
         }
 
         if (finalUsername.isNotEmpty() && finalPassword.isNotEmpty()) {
-            val account = Account(
-                name = finalUsername,
-                password = finalPassword,
-                type = AccountType.LOGIN,
-                packageName = targetPackageName
-            )
+            val isApp = targetPackageName.isNotEmpty() && !targetPackageName.contains("chrome") && !targetPackageName.contains("browser")
             val accounts = EncryptionHelper.loadAccounts(this).toMutableList()
-            accounts.add(account)
+
+            val existingAccount = accounts.find { 
+                it.getName() == finalUsername && 
+                it.getPackageName() == targetPackageName && 
+                !it.getDeleted()
+            }
+
+            if (existingAccount != null) {
+                existingAccount.setPassword(finalPassword)
+                // Cập nhật lại loại nếu cần
+                existingAccount.setType(if (isApp) AccountType.APP else AccountType.WEB)
+            } else {
+                val account = Account(
+                    name = finalUsername,
+                    password = finalPassword,
+                    type = if (isApp) AccountType.APP else AccountType.WEB,
+                    packageName = targetPackageName
+                )
+                accounts.add(account)
+            }
+            
             EncryptionHelper.saveAccounts(this, accounts)
         }
         callback.onSuccess()

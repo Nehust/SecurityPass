@@ -96,8 +96,19 @@ fun AccountItem(
                         overflow = TextOverflow.Ellipsis
                     )
                 } else {
+                    val subtitle = if (isWifi) {
+                        "Wi-Fi - ${account.getSecurityType()}"
+                    } else {
+                        val typeStr = if (account.isAppAccount()) "App" else "Web"
+                        val sourceStr = account.getPackageName().takeIf { it.isNotEmpty() } ?: account.getDomain().takeIf { it.isNotEmpty() }
+                        if (sourceStr != null) {
+                            "$typeStr - $sourceStr"
+                        } else {
+                            typeStr
+                        }
+                    }
                     Text(
-                        text = "Reused password", // Bạn có thể thay đổi logic để hiện tên đăng nhập thực tế
+                        text = subtitle,
                         color = Color.Gray,
                         fontSize = 13.sp,
                         maxLines = 1,
