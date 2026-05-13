@@ -108,9 +108,60 @@ class MainActivity : FragmentActivity() {
 
                     if (!securityEnabled && biometricReady) {
                         securityManager.setupSecurity(this@MainActivity) {
-                            if (securityManager.isSecurityEnabled()) isUnlocked = false
+                            if (securityManager.isSecurityEnabled()) {
+                                isUnlocked = false
+                            }
                         }
                     }
+                }
+
+                // Hỏi bật Autofill lần đầu
+                var showAutofillPrompt by remember { mutableStateOf(false) }
+
+                LaunchedEffect(Unit) {
+                    val prefs = getSharedPreferences("app_settings", android.content.Context.MODE_PRIVATE)
+                    val hasPromptedAutofill = prefs.getBoolean("has_prompted_autofill", false)
+                    
+                    if (!hasPromptedAutofill) {
+                        val autofillManager = getSystemService(android.view.autofill.AutofillManager::class.java)
+                        if (autofillManager != null && !autofillManager.hasEnabledAutofillServices()) {
+                            showAutofillPrompt = true
+                        }
+                    }
+                }
+
+                if (showAutofillPrompt) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { 
+                            showAutofillPrompt = false 
+                            getSharedPreferences("app_settings", android.content.Context.MODE_PRIVATE).edit().putBoolean("has_prompted_autofill", true).apply()
+                        },
+                        title = { androidx.compose.material3.Text("Bật Tự động điền") },
+                        text = { androidx.compose.material3.Text("Để SecurePass có thể tự động điền và hỏi lưu mật khẩu trên các ứng dụng khác, vui lòng chọn SecurePass làm dịch vụ Tự động điền mặc định trong Cài đặt.") },
+                        confirmButton = {
+                            androidx.compose.material3.Button(onClick = {
+                                showAutofillPrompt = false
+                                getSharedPreferences("app_settings", android.content.Context.MODE_PRIVATE).edit().putBoolean("has_prompted_autofill", true).apply()
+                                try {
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE)
+                                    intent.data = android.net.Uri.parse("package:${packageName}")
+                                    startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Không thể mở cài đặt Autofill", Toast.LENGTH_SHORT).show()
+                                }
+                            }) {
+                                androidx.compose.material3.Text("Bật ngay")
+                            }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(onClick = {
+                                showAutofillPrompt = false
+                                getSharedPreferences("app_settings", android.content.Context.MODE_PRIVATE).edit().putBoolean("has_prompted_autofill", true).apply()
+                            }) {
+                                androidx.compose.material3.Text("Để sau")
+                            }
+                        }
+                    )
                 }
 
                 // -----------------------------------------------------------
@@ -130,16 +181,24 @@ class MainActivity : FragmentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         contentWindowInsets = WindowInsets(0, 0, 0, 0)
                     ) {
-                        NavHost(navController, startDestination = "home") {
+                        NavHost(
+                            navController = navController,
+                            startDestination = "home",
+                            enterTransition = { androidx.compose.animation.EnterTransition.None },
+                            exitTransition = { androidx.compose.animation.ExitTransition.None },
+                            popEnterTransition = { androidx.compose.animation.EnterTransition.None },
+                            popExitTransition = { androidx.compose.animation.ExitTransition.None }
+                        ) {
                             composable("home") {
                                 DashboardScreen(navController = navController, accounts = accounts)
                             }
 
                             composable("category/{categoryName}") { backStackEntry ->
                                 val categoryName = backStackEntry.arguments?.getString("categoryName") ?: "All"
+                                val decodedCategoryName = java.net.URLDecoder.decode(categoryName, "UTF-8")
                                 CategoryScreen(
                                     navController = navController,
-                                    categoryName = categoryName,
+                                    categoryName = decodedCategoryName,
                                     accounts = accounts,
                                     onAuthenticate = { onSuccess ->
                                         securityManager.authenticate(
@@ -164,9 +223,9 @@ class MainActivity : FragmentActivity() {
                                 )
                             }
 
-                            composable("createAccount/{accountName}") { backStackEntry ->
-                                val accountName = backStackEntry.arguments?.getString("accountName")
-                                val account = accounts.find { it.getName() == accountName }
+                            composable("createAccount/{accountIndex}") { backStackEntry ->
+                                val accountIndex = backStackEntry.arguments?.getString("accountIndex")?.toIntOrNull()
+                                val account = accountIndex?.let { if (it in accounts.indices) accounts[it] else null }
                                 CreateAccountScreen(
                                     navController = navController,
                                     modifier = Modifier,

@@ -1,6 +1,7 @@
 package com.example.passwordmanager.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -16,24 +17,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController // Import NavController
-import androidx.navigation.compose.rememberNavController // Import for Preview
-import com.example.passwordmanager.ui.theme.PasswordManagerTheme
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.passwordmanager.data.Account
+import com.example.passwordmanager.data.AccountType
+import com.example.passwordmanager.ui.theme.PasswordManagerTheme
 
 data class GridCardItem(
     val icon: ImageVector,
     val iconColor: Color,
     val title: String,
-    val count: Int
+    val count: Int,
+    val isCategory: Boolean = true
 )
 
 @Composable
@@ -41,129 +41,200 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { navController.navigate("createAccount") }, // Navigate to createAccount
-                containerColor = MaterialTheme.colorScheme.primary,
+                onClick = { navController.navigate("createAccount") },
+                containerColor = Color.Transparent,
+                elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp),
                 modifier = Modifier.padding(16.dp)
             ) {
-                Icon(Icons.Filled.Add, "Add new password", tint = MaterialTheme.colorScheme.onPrimary)
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "Add new password",
+                    tint = Color(0xFF0A84FF),
+                    modifier = Modifier.size(32.dp)
+                )
             }
         },
-        content = { paddingValues ->
+        containerColor = Color.Black // iOS Dark Mode
+    ) { paddingValues ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
+        ) {
+            // Top Section: Title
+            Text(
+                text = "SecurityPass",
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp
+                ),
+                color = Color.White,
+                modifier = Modifier.padding(bottom = 12.dp, top = 16.dp)
+            )
+
+            // Search Bar
+            OutlinedTextField(
+                value = "",
+                onValueChange = { },
+                placeholder = { Text("Search", color = Color.Gray) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search", tint = Color.Gray) },
+                trailingIcon = { Icon(Icons.Filled.Mic, contentDescription = "Voice search", tint = Color.Gray) },
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF1C1C1E),
+                    unfocusedContainerColor = Color(0xFF1C1C1E),
+                    disabledContainerColor = Color(0xFF1C1C1E),
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    disabledBorderColor = Color.Transparent,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .padding(bottom = 16.dp)
+            )
+
+            val wifiCount = accounts.count { it.getType() == AccountType.WIFI }
+            val loginCount = accounts.count { it.getType() == AccountType.LOGIN }
+            val allCount = accounts.size
+
+            // Grid Menu
+            val cardItems = listOf(
+                GridCardItem(Icons.Filled.Key, Color(0xFF0A84FF), "All", allCount),
+                GridCardItem(Icons.Filled.Person, Color(0xFF30D158), "Passkeys", 0),
+                GridCardItem(Icons.Filled.LockClock, Color(0xFFFFD60A), "Codes", 0),
+                GridCardItem(Icons.Filled.Wifi, Color(0xFF32ADE6), "WLAN", wifiCount),
+                GridCardItem(Icons.Filled.Language, Color(0xFFBF5AF2), "Web", loginCount), // Dùng chung count với App tạm thời
+                GridCardItem(Icons.Filled.Apps, Color(0xFFFF453A), "App", 0) 
+            )
+
+            // Dùng Column/Row thủ công để không bị scroll
             Column(
-                modifier = modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Top Section: Title
-                Text(
-                    text = "Passwords",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
-
-                // Search Bar
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = { /* Handle search text change */ },
-                    placeholder = { Text("Search") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
-                    trailingIcon = { Icon(Icons.Filled.Mic, contentDescription = "Voice search") },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        disabledBorderColor = Color.Transparent,
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 24.dp)
-                )
-
-                val wifiCount = accounts.count { it.getType() == com.example.passwordmanager.data.AccountType.WIFI }
-                val loginCount = accounts.count { it.getType() == com.example.passwordmanager.data.AccountType.LOGIN }
-                val allCount = accounts.size
-
-                // Grid Menu
-                val cardItems = listOf(
-                    GridCardItem(Icons.Filled.Key, Color(0xFF007AFF), "All", allCount),
-                    GridCardItem(Icons.Filled.Wifi, Color(0xFF32ADE6), "WLAN", wifiCount),
-                    GridCardItem(Icons.Filled.Language, Color(0xFF34C759), "Web/App", loginCount),
-                    GridCardItem(Icons.Filled.Warning, Color(0xFFFF3B30), "Security", 0)
-                )
-
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    items(cardItems) { item ->
-                        GridCard(item = item, onClick = { navController.navigate("category/${item.title}") })
+                for (i in cardItems.indices step 2) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            GridCard(item = cardItems[i], onClick = {
+                                val routeName = if (cardItems[i].title == "All") "All" else if (cardItems[i].title == "WLAN") "WLAN" else "WEB/APP"
+                                val safeName = java.net.URLEncoder.encode(routeName, "UTF-8")
+                                navController.navigate("category/$safeName")
+                            })
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (i + 1 < cardItems.size) {
+                                GridCard(item = cardItems[i + 1], onClick = {
+                                    val routeName = if (cardItems[i + 1].title == "All") "All" else if (cardItems[i + 1].title == "WLAN") "WLAN" else "WEB/APP"
+                                    val safeName = java.net.URLEncoder.encode(routeName, "UTF-8")
+                                    navController.navigate("category/$safeName")
+                                })
+                            }
+                        }
                     }
                 }
             }
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            Text(
+                text = "SHARED GROUPS",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.Gray,
+                modifier = Modifier.padding(bottom = 6.dp, start = 16.dp)
+            )
+            
+            // Shared Group Card
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Group,
+                        contentDescription = "New Shared Group",
+                        tint = Color(0xFF0A84FF),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "New Shared Group",
+                        color = Color(0xFF0A84FF),
+                        fontSize = 17.sp
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.weight(1f))
         }
-    )
+    }
 }
 
 @Composable
 fun GridCard(item: GridCardItem, onClick: () -> Unit) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .clickable { onClick() }
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(10.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(item.iconColor.copy(alpha = 0.2f)), // Lighter background for the icon circle
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
-                Icon(
-                    item.icon,
-                    contentDescription = item.title,
-                    tint = item.iconColor,
-                    modifier = Modifier.size(24.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(item.iconColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        item.icon,
+                        contentDescription = item.title,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = item.count.toString(),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Color.Gray
+                    )
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = item.count.toString(),
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "View ${item.title}",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            
+            Text(
+                text = item.title,
+                fontSize = 14.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Medium
             )
         }
     }

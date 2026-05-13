@@ -12,7 +12,9 @@ class Account(
     private var password: String = "",
     private var type: AccountType = AccountType.LOGIN,
     private var ssid: String = "",
-    private var securityType: String = "WPA" // WPA, WEP, NONE
+    private var securityType: String = "WPA", // WPA, WEP, NONE
+    private var packageName: String = "",
+    private var domain: String = ""
 ) : Serializable {
     fun setName(name: String) { this.name = name }
     fun getName(): String = name
@@ -28,4 +30,10 @@ class Account(
 
     fun setSecurityType(securityType: String) { this.securityType = securityType }
     fun getSecurityType(): String = securityType
+
+    fun setPackageName(packageName: String) { this.packageName = packageName }
+    fun getPackageName(): String = packageName
+
+    fun setDomain(domain: String) { this.domain = domain }
+    fun getDomain(): String = domain
 }

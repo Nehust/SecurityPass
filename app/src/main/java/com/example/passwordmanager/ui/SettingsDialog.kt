@@ -129,6 +129,24 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // Autofill Section
+            SettingsOption(
+                icon = Icons.Default.Keyboard,
+                text = "Enable Autofill Service",
+                onClick = {
+                    keyboardController?.hide()
+                    try {
+                        val intent = Intent(android.provider.Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE)
+                        intent.data = android.net.Uri.parse("package:${context.packageName}")
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        errorMessage = "Cannot open Autofill settings"
+                    }
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
             // Import Section
             SettingsOption(
                 icon = Icons.Default.Upload,

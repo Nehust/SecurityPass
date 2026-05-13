@@ -39,11 +39,14 @@ app/src/main/java/com/example/passwordmanager/
 3. **Quản lý Vòng đời (Auto-lock):** App tự khóa khi rơi vào trạng thái `ON_STOP`.
 4. **Quản lý mật khẩu:** Thêm, sửa, xóa, ẩn/hiện mật khẩu.
 5. **Gợi ý mật khẩu mạnh (Auto-Suggestion):** Nút tạo pass ngẫu nhiên trong form thêm mới.
+6. **Autofill Service (Đã cải thiện):** Tự động điền mật khẩu trên các app/web khác và gợi ý lưu mật khẩu mới. Tích hợp quét vân tay/khuôn mặt trước khi điền. Đã cải thiện:
+   - **Phát hiện trường nâng cao:** Hỗ trợ phát hiện username/password field tốt hơn với từ khóa tiếng Việt và tiếng Anh
+   - **Khớp thông minh:** Ưu tiên theo package name, sau đó theo domain, cuối cùng theo thứ tự bảng chữ cái
+   - **Hỗ trợ HTML:** Phát hiện tốt hơn các trường trong WebView với placeholder, name, id attributes
 
 ### ⏳ Đang phát triển / Chưa làm
-1. **Credential Manager Integration:** (Ưu tiên cao) - Đăng ký app làm Autofill Service để tự động điền pass cho ứng dụng/trình duyệt khác.
-2. **Chống chụp màn hình (Anti-Screenshot):** Đã có code `FLAG_SECURE` nhưng đang bị comment lại trong `MainActivity`.
-3. **Wifi & Network Vault:** Thêm Data class và UI riêng để lưu SSID/Pass Wifi.
+1. **Chống chụp màn hình (Anti-Screenshot):** Đã có code `FLAG_SECURE` nhưng đang bị comment lại trong `MainActivity`.
+2. **Wifi & Network Vault:** Thêm Data class và UI riêng để lưu SSID/Pass Wifi.
 4. **Quick Fill Service:** Nhận diện ô nhập liệu để hiển thị gợi ý trên bàn phím.
 
 ## 5. 🔄 Luồng hoạt động (Core Flow)
