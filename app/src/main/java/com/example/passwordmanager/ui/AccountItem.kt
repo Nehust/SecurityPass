@@ -32,7 +32,11 @@ fun AccountItem(
 ) {
     val isWifi = account.getType() == AccountType.WIFI
     val displayName = if (isWifi) account.getSsid() else account.getName()
-    val firstLetter = if (displayName.isNotEmpty()) displayName.substring(0, 1).uppercase() else "?"
+    
+    val sourceStr = account.getPackageName().takeIf { it.isNotEmpty() } ?: account.getDomain().takeIf { it.isNotEmpty() }
+    val labelForLogo = if (isWifi) account.getSsid() else sourceStr ?: displayName
+    val cleanName = com.example.passwordmanager.utils.AvatarGenerator.extractCleanName(labelForLogo)
+    val firstLetter = if (cleanName.isNotEmpty() && cleanName != "?") cleanName.substring(0, 1).uppercase() else "?"
     
     val colors = listOf(
         0xFFF44336, 0xFFE91E63, 0xFF9C27B0, 0xFF673AB7,
@@ -41,7 +45,7 @@ fun AccountItem(
         0xFFFFC107, 0xFFFF9800, 0xFFFF5722, 0xFF795548,
         0xFF9E9E9E, 0xFF607D8B
     )
-    val colorHash = kotlin.math.abs(displayName.hashCode())
+    val colorHash = kotlin.math.abs(cleanName.hashCode())
     val backgroundColor = Color(colors[colorHash % colors.size])
     
     // Giả lập trạng thái password để hiển thị text màu đỏ/xám như ảnh
@@ -110,7 +114,6 @@ fun AccountItem(
                         "Wi-Fi - ${account.getSecurityType()}"
                     } else {
                         val typeStr = if (account.isAppAccount()) "App" else "Web"
-                        val sourceStr = account.getPackageName().takeIf { it.isNotEmpty() } ?: account.getDomain().takeIf { it.isNotEmpty() }
                         if (sourceStr != null) {
                             "$typeStr - $sourceStr"
                         } else {
@@ -119,10 +122,24 @@ fun AccountItem(
                     }
                     Text(
                         text = subtitle,
-                        color = Color.Gray,
+                        color = if (account.isWebAccount() && sourceStr != null) Color(0xFF0A84FF) else Color.Gray,
                         fontSize = 13.sp,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable {
+                            if (account.isWebAccount() && sourceStr != null) {
+                                val url = if (!sourceStr.startsWith("http://") && !sourceStr.startsWith("https://")) {
+                                    "https://$sourceStr"
+                                } else {
+                                    sourceStr
+                                }
+                                try {
+                                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                                } catch (e: Exception) {
+                                    android.util.Log.e("AccountItem", "Cannot open URL: $url")
+                                }
+                            }
+                        }
                     )
                 }
             }

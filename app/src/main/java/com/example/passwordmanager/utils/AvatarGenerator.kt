@@ -18,9 +18,22 @@ object AvatarGenerator {
         "#9E9E9E", "#607D8B"
     )
 
+    fun extractCleanName(name: String): String {
+        if (name.isEmpty()) return "?"
+        var cleanName = name.lowercase().replace("https://", "").replace("http://", "")
+        cleanName = cleanName.removePrefix("www.").removePrefix("m.")
+        val parts = cleanName.split(".")
+        if (parts.size >= 2) {
+            val maxPart = parts.maxByOrNull { it.length } ?: cleanName
+            return maxPart
+        }
+        return cleanName
+    }
+
     fun generateAvatarBitmap(name: String, sizePx: Int = 100): Bitmap {
-        val letter = if (name.isNotEmpty()) name.substring(0, 1).uppercase() else "?"
-        val colorHash = name.hashCode().absoluteValue
+        val cleanName = extractCleanName(name)
+        val letter = if (cleanName.isNotEmpty() && cleanName != "?") cleanName.substring(0, 1).uppercase() else "?"
+        val colorHash = cleanName.hashCode().absoluteValue
         val backgroundColor = Color.parseColor(colors[colorHash % colors.size])
 
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
