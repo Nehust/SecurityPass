@@ -35,13 +35,18 @@ fun CategoryScreen(
     
     val isCodesCategory = categoryName.uppercase() == "CODES"
 
+    // Hàm kiểm tra account này là account chỉ-TOTP (không có mật khẩu)
+    fun isOnlyTotp(acc: Account) = acc.getTotpSecret().isNotEmpty() && acc.getPassword().isEmpty() && acc.getSsid().isEmpty()
+
     val filteredAccounts = accounts.filter {
         val matchesCategory = when (categoryName.uppercase()) {
             "WLAN" -> it.getType() == AccountType.WIFI && !it.getDeleted()
-            // Web: account web nhưng KHÔNG phải account chỉ-TOTP (không có password)
+            // Web: có password (loại trừ account chỉ-TOTP)
             "WEB" -> it.isWebAccount() && it.getPassword().isNotEmpty() && !it.getDeleted()
-            "APP" -> it.isAppAccount() && !it.getDeleted()
-            "ALL" -> !it.getDeleted()
+            // App: có password (loại trừ account chỉ-TOTP)
+            "APP" -> it.isAppAccount() && it.getPassword().isNotEmpty() && !it.getDeleted()
+            // All: hiện tất cả TRỪ account chỉ-TOTP (loại này thuộc Codes)
+            "ALL" -> !it.getDeleted() && !isOnlyTotp(it)
             "DELETED" -> it.getDeleted()
             // Codes: chỉ account có TOTP secret
             "CODES" -> it.getTotpSecret().isNotEmpty() && !it.getDeleted()
