@@ -9,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
@@ -25,29 +24,37 @@ import androidx.compose.ui.unit.sp
 import com.example.passwordmanager.data.Account
 import com.example.passwordmanager.data.AccountType
 
+/**
+ * AccountItem hiển thị hai dạng:
+ *  - isCodesView = false (mặc định): Hiển thị tài khoản mật khẩu (Web/App/Wifi)
+ *    → KHÔNG hiển thị mã TOTP inline, chỉ hiện mũi tên
+ *  - isCodesView = true: Hiển thị tài khoản 2FA
+ *    → Hiển thị mã TOTP + đồng hồ đếm ngược, KHÔNG hiện mũi tên
+ */
 @Composable
 fun AccountItem(
     account: Account,
     context: Context,
     onEdit: (Account) -> Unit,
-    onDelete: (Account) -> Unit, // Giữ lại chữ ký hàm để không lỗi file khác, nhưng không dùng UI vuốt nữa
+    onDelete: (Account) -> Unit,
     onAuthenticate: ((onSuccess: () -> Unit) -> Unit)? = null,
     isCodesView: Boolean = false
 ) {
     val isWifi = account.getType() == AccountType.WIFI
     val displayName = if (isWifi) account.getSsid() else account.getName()
-    
+
     val sourceStr = if (account.isWebAccount() && account.getDomain().isNotEmpty()) {
         account.getDomain()
     } else {
         val pkg = account.getPackageName()
-        if (pkg.isNotEmpty() && pkg != "com.android.chrome") pkg else account.getDomain().takeIf { it.isNotEmpty() } ?: pkg
+        if (pkg.isNotEmpty() && pkg != "com.android.chrome") pkg
+        else account.getDomain().takeIf { it.isNotEmpty() } ?: pkg
     }.takeIf { it.isNotEmpty() }
 
     val labelForLogo = if (isWifi) account.getSsid() else sourceStr ?: displayName
     val cleanName = com.example.passwordmanager.utils.AvatarGenerator.extractCleanName(labelForLogo)
     val firstLetter = if (cleanName.isNotEmpty() && cleanName != "?") cleanName.substring(0, 1).uppercase() else "?"
-    
+
     val colors = listOf(
         0xFFF44336, 0xFFE91E63, 0xFF9C27B0, 0xFF673AB7,
         0xFF3F51B5, 0xFF2196F3, 0xFF03A9F4, 0xFF00BCD4,
@@ -57,8 +64,7 @@ fun AccountItem(
     )
     val colorHash = kotlin.math.abs(cleanName.hashCode())
     val backgroundColor = Color(colors[colorHash % colors.size])
-    
-    // Giả lập trạng thái password để hiển thị text màu đỏ/xám như ảnh
+
     val isCompromised = displayName.contains("OpenAI", ignoreCase = true) || displayName.contains("bkict", ignoreCase = true)
 
     Column(
@@ -79,7 +85,7 @@ fun AccountItem(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Letter Avatar
+            // ─── Letter Avatar ───────────────────────────────────────────
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -97,10 +103,8 @@ fun AccountItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Text Info
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            // ─── Text Info ───────────────────────────────────────────────
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = displayName,
                     color = Color.White,
@@ -108,9 +112,9 @@ fun AccountItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 Spacer(modifier = Modifier.height(2.dp))
-                
+
                 if (isCompromised) {
                     Text(
                         text = "Compromised password",
@@ -120,24 +124,34 @@ fun AccountItem(
                         overflow = TextOverflow.Ellipsis
                     )
                 } else {
-                    val subtitle = if (isWifi) {
-                        "Wi-Fi - ${account.getSecurityType()}"
-                    } else {
-                        val typeStr = if (account.isAppAccount()) "App" else "Web"
-                        if (sourceStr != null) {
-                            "$typeStr - $sourceStr"
-                        } else {
-                            typeStr
+                    // Subtitle khác nhau tuỳ ngữ cảnh
+                    val subtitle = when {
+                        isCodesView -> {
+                            // Trong màn 2FA, phụ đề là domain/issuer hoặc "2FA"
+                            sourceStr ?: account.getName().takeIf { it.isNotEmpty() } ?: "Authenticator"
+                        }
+                        isWifi -> "Wi-Fi · ${account.getSecurityType()}"
+                        else -> {
+                            val typeLabel = if (account.isAppAccount()) "App" else "Web"
+                            if (sourceStr != null) "$typeLabel · $sourceStr" else typeLabel
                         }
                     }
+
+                    val subtitleColor = when {
+                        isCodesView -> Color.Gray
+                        account.isWebAccount() && sourceStr != null -> Color(0xFF0A84FF)
+                        else -> Color.Gray
+                    }
+
                     Text(
                         text = subtitle,
-                        color = if (account.isWebAccount() && sourceStr != null) Color(0xFF0A84FF) else Color.Gray,
+                        color = subtitleColor,
                         fontSize = 13.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.clickable {
-                            if (account.isWebAccount() && sourceStr != null) {
+                            // Chỉ mở link khi KHÔNG ở chế độ Codes và là Web account
+                            if (!isCodesView && account.isWebAccount() && sourceStr != null) {
                                 val url = if (!sourceStr.startsWith("http://") && !sourceStr.startsWith("https://")) {
                                     "https://$sourceStr"
                                 } else {
@@ -153,58 +167,13 @@ fun AccountItem(
                     )
                 }
             }
-            if (account.getTotpSecret().isNotEmpty()) {
-                var totpCode by remember { mutableStateOf("") }
-                var totpProgress by remember { mutableStateOf(0f) }
-                
-                LaunchedEffect(Unit) {
-                    while (true) {
-                        val time = System.currentTimeMillis()
-                        val step = 30000L
-                        val remaining = step - (time % step)
-                        totpCode = com.example.passwordmanager.utils.TotpGenerator.generateTotp(account.getTotpSecret(), time)
-                        totpProgress = remaining.toFloat() / step.toFloat()
-                        kotlinx.coroutines.delay(50)
-                    }
-                }
-                
-                if (totpCode.length == 6) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = totpCode.substring(0, 3) + " " + totpCode.substring(3, 6),
-                            color = Color(0xFF0A84FF),
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(18.dp)) {
-                            CircularProgressIndicator(
-                                progress = { totpProgress },
-                                modifier = Modifier.fillMaxSize(),
-                                color = Color(0xFF0A84FF),
-                                strokeWidth = 2.5.dp,
-                                trackColor = Color(0xFF3A3A3C)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Default.ContentCopy,
-                            contentDescription = "Copy TOTP",
-                            tint = Color.Gray,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clickable {
-                                    val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    val clipData = android.content.ClipData.newPlainText("TOTP Code", totpCode)
-                                    clipboardManager.setPrimaryClip(clipData)
-                                    android.widget.Toast.makeText(context, "Copied $totpCode", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                        )
-                    }
-                }
+
+            // ─── Trailing widget ──────────────────────────────────────────
+            if (isCodesView && account.getTotpSecret().isNotEmpty()) {
+                // === CHẾ ĐỘ 2FA: Hiển thị TOTP + đồng hồ ===
+                TotpWidget(account = account, context = context)
             } else {
-                // Arrow Right
+                // === CHẾ ĐỘ MẬT KHẨU: Chỉ hiển thị mũi tên ===
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
@@ -213,11 +182,73 @@ fun AccountItem(
                 )
             }
         }
-        
+
         HorizontalDivider(
-            modifier = Modifier.padding(start = 76.dp), // Thụt vào một chút cho giống iOS
+            modifier = Modifier.padding(start = 76.dp),
             thickness = 0.5.dp,
             color = Color(0xFF3A3A3C)
         )
+    }
+}
+
+/**
+ * Widget hiển thị mã TOTP 6 số + vòng tròn đếm ngược + nút copy.
+ * Chỉ dùng trong isCodesView = true.
+ */
+@Composable
+private fun TotpWidget(account: Account, context: Context) {
+    var totpCode by remember { mutableStateOf("") }
+    var totpProgress by remember { mutableStateOf(1f) }
+
+    LaunchedEffect(account.getTotpSecret()) {
+        while (true) {
+            val time = System.currentTimeMillis()
+            val step = 30_000L
+            val remaining = step - (time % step)
+            totpCode = com.example.passwordmanager.utils.TotpGenerator.generateTotp(account.getTotpSecret(), time)
+            totpProgress = remaining.toFloat() / step.toFloat()
+            kotlinx.coroutines.delay(50)
+        }
+    }
+
+    if (totpCode.length == 6) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Mã 6 số chia 2 nhóm 3 để dễ đọc
+            Text(
+                text = "${totpCode.substring(0, 3)} ${totpCode.substring(3)}",
+                color = if (totpProgress < 0.17f) Color(0xFFFF453A) else Color(0xFF30D158), // đỏ khi sắp hết
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Vòng tròn đếm ngược
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(20.dp)) {
+                CircularProgressIndicator(
+                    progress = { totpProgress },
+                    modifier = Modifier.fillMaxSize(),
+                    color = if (totpProgress < 0.17f) Color(0xFFFF453A) else Color(0xFF30D158),
+                    strokeWidth = 2.5.dp,
+                    trackColor = Color(0xFF3A3A3C)
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Nút copy
+            Icon(
+                imageVector = Icons.Default.ContentCopy,
+                contentDescription = "Copy TOTP",
+                tint = Color.Gray,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                            as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OTP", totpCode))
+                        android.widget.Toast.makeText(context, "Đã sao chép $totpCode", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+            )
+        }
     }
 }

@@ -33,16 +33,23 @@ fun CategoryScreen(
     var deletingAccount by remember { mutableStateOf<Account?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     
+    val isCodesCategory = categoryName.uppercase() == "CODES"
+
     val filteredAccounts = accounts.filter {
         val matchesCategory = when (categoryName.uppercase()) {
             "WLAN" -> it.getType() == AccountType.WIFI && !it.getDeleted()
-            "WEB" -> it.isWebAccount() && !it.getDeleted()
+            // Web: account web nhưng KHÔNG phải account chỉ-TOTP (không có password)
+            "WEB" -> it.isWebAccount() && it.getPassword().isNotEmpty() && !it.getDeleted()
             "APP" -> it.isAppAccount() && !it.getDeleted()
             "ALL" -> !it.getDeleted()
             "DELETED" -> it.getDeleted()
+            // Codes: chỉ account có TOTP secret
+            "CODES" -> it.getTotpSecret().isNotEmpty() && !it.getDeleted()
             else -> false
         }
-        val matchesSearch = it.getName().contains(searchQuery, ignoreCase = true) || it.getSsid().contains(searchQuery, ignoreCase = true)
+        val matchesSearch = it.getName().contains(searchQuery, ignoreCase = true) ||
+            it.getSsid().contains(searchQuery, ignoreCase = true) ||
+            it.getDomain().contains(searchQuery, ignoreCase = true)
         matchesCategory && matchesSearch
     }
 
@@ -75,9 +82,18 @@ fun CategoryScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
-            // Large Title
+            // Large Title - hiển thị tên category đẹp hơn
+            val displayTitle = when (categoryName.uppercase()) {
+                "WEB" -> "Web"
+                "APP" -> "App"
+                "WLAN" -> "Wi-Fi"
+                "ALL" -> "All"
+                "CODES" -> "Codes"
+                "DELETED" -> "Deleted"
+                else -> categoryName
+            }
             Text(
-                text = categoryName.replace("WEB/APP", "Security"), // Giả lập title như ảnh
+                text = displayTitle,
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.Bold,
                     fontSize = 34.sp
@@ -127,7 +143,9 @@ fun CategoryScreen(
                                 navController.navigate("createAccount/$index")
                             },
                             onDelete = { deletingAccount = it },
-                            onAuthenticate = onAuthenticate
+                            onAuthenticate = onAuthenticate,
+                            // Khi xem danh sách Codes, dùng chế độ 2FA (hiện TOTP thay vì mũi tên)
+                            isCodesView = isCodesCategory
                         )
                     }
                 }

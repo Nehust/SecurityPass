@@ -96,8 +96,10 @@ fun DashboardScreen(navController: NavController, modifier: Modifier = Modifier,
             )
 
             val wifiCount = accounts.count { it.getType() == AccountType.WIFI && !it.getDeleted() }
-            val webCount = accounts.count { it.isWebAccount() && !it.getDeleted() }
-            val appCount = accounts.count { it.isAppAccount() && !it.getDeleted() }
+            // Web: account web có mật khẩu (không đếm account chỉ có TOTP)
+            val webCount = accounts.count { it.isWebAccount() && it.getPassword().isNotEmpty() && !it.getDeleted() }
+            val appCount = accounts.count { it.isAppAccount() && it.getPassword().isNotEmpty() && !it.getDeleted() }
+            // Codes: các account có TOTP secret (2FA)
             val codesCount = accounts.count { it.getTotpSecret().isNotEmpty() && !it.getDeleted() }
             val allCount = accounts.count { !it.getDeleted() }
             val deletedCount = accounts.count { it.getDeleted() }
