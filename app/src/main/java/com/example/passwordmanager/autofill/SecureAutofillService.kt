@@ -95,6 +95,47 @@ class SecureAutofillService : AutofillService() {
             fillResponseBuilder.setSaveInfo(builder.build())
         }
 
+        // Đề xuất Mật khẩu Mạnh nếu là Form Đăng ký
+        if (parser.isRegistrationForm && parser.passwordId != null) {
+            val generatedPassword = com.example.passwordmanager.utils.PasswordGenerator.generatePassword(16, true, true, true, true)
+            
+            val presentation = RemoteViews(this.packageName, R.layout.autofill_item)
+            presentation.setTextViewText(R.id.text_view, "Gợi ý: $generatedPassword")
+            
+            val avatarBitmap = com.example.passwordmanager.utils.AvatarGenerator.generateAvatarBitmap("G")
+            presentation.setImageViewBitmap(R.id.logo_view, avatarBitmap)
+
+            val datasetBuilder = Dataset.Builder()
+            val autofillValue = android.view.autofill.AutofillValue.forText(generatedPassword)
+            
+            var inlinePresentation: InlinePresentation? = null
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlineRequest != null && inlineRequest.inlinePresentationSpecs.isNotEmpty()) {
+                val spec = inlineRequest.inlinePresentationSpecs.first()
+                try {
+                    val avatarIcon = com.example.passwordmanager.utils.AvatarGenerator.generateAvatarIcon("G")
+                    
+                    val dummyIntent = PendingIntent.getActivity(this, 0, Intent(), PendingIntent.FLAG_IMMUTABLE)
+                    val slice = androidx.autofill.inline.v1.InlineSuggestionUi.newContentBuilder(dummyIntent)
+                        .setTitle("Gợi ý: $generatedPassword")
+                        .setSubtitle("Mật khẩu mạnh")
+                        .setStartIcon(avatarIcon)
+                        .build()
+                        .slice
+                    inlinePresentation = InlinePresentation(slice, spec, false)
+                } catch (e: Exception) {
+                    Log.e("AutofillDebug", "Lỗi tạo InlinePresentation cho Gợi ý: ${e.message}")
+                }
+            }
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlinePresentation != null) {
+                datasetBuilder.setValue(parser.passwordId!!, autofillValue, presentation, inlinePresentation)
+            } else {
+                datasetBuilder.setValue(parser.passwordId!!, autofillValue, presentation)
+            }
+            
+            fillResponseBuilder.addDataset(datasetBuilder.build())
+        }
+
         if (matchedAccounts.isNotEmpty()) {
             for (account in matchedAccounts) {
                 val labelForLogo = if (account.isWebAccount() && account.getDomain().isNotEmpty()) account.getDomain() else account.getPackageName()
@@ -247,6 +288,7 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
     var passwordNode: android.app.assist.AssistStructure.ViewNode? = null
     var totpNode: android.app.assist.AssistStructure.ViewNode? = null
     var webDomain: String = ""
+    var isRegistrationForm: Boolean = false
 
     // Danh sách lưu các ô nhập liệu (để dự đoán theo vị trí)
     private val textFields = mutableListOf<android.app.assist.AssistStructure.ViewNode>()
@@ -371,6 +413,15 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
                 isUser = true
             }
         }
+        
+        // Detect Registration Form
+        val regKeywords = listOf("new-password", "new_password", "confirm_password", "đăng ký", "tạo tài khoản", "sign up", "register", "create account", "new password")
+        if (regKeywords.any { viewId.contains(it) } || 
+            regKeywords.any { hintText.contains(it) } || 
+            regKeywords.any { text.contains(it) } ||
+            (hints?.any { h -> regKeywords.any { k -> h.lowercase().contains(k) } } == true)) {
+            isRegistrationForm = true
+        }
 
         // Nếu là ô nhập liệu, đưa vào mảng để nội suy sau này
         if (className.contains("EditText") || className.contains("TextInput") || baseInputType > 0) {
@@ -402,6 +453,9 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
                 passKeywords.any { placeholder?.contains(it) == true } ||
                 passKeywords.any { autocomplete?.contains(it) == true }) {
                 isPass = true
+                if (autocomplete == "new-password" || name?.contains("new_password") == true || id?.contains("new_password") == true) {
+                    isRegistrationForm = true
+                }
             }
             else if (type == "email" || type == "text" || type == "tel") {
                 if (userKeywords.any { name?.contains(it) == true } ||
