@@ -88,7 +88,8 @@ class SecureAutofillService : AutofillService() {
 
             // Bí quyết: Với App, không dùng cờ INVISIBLE. Hộp thoại CHỈ hiện khi Activity Login đóng (đăng nhập thành công).
             // Với Web (Chrome), Activity không đóng nên BẮT BUỘC phải dùng cờ INVISIBLE (mọi view biến mất).
-            if (parsedWebDomain.isNotEmpty()) {
+            val isBrowser = parsedWebDomain.isNotEmpty() || packageName.contains("chrome") || packageName.contains("browser") || packageName.contains("opera") || packageName.contains("firefox") || packageName.contains("edge")
+            if (isBrowser) {
                 builder.setFlags(SaveInfo.FLAG_SAVE_ON_ALL_VIEWS_INVISIBLE)
             }
 
