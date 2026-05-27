@@ -47,11 +47,13 @@ app/src/main/java/com/example/passwordmanager/
    - **Hiển thị nguồn gốc:** Giao diện hiển thị rõ nguồn gốc mật khẩu (App Package / Web Domain).
    - **Tự động ghi đè (Auto-Update):** Nếu đăng nhập vào cùng ứng dụng với tài khoản đã có, tự động ghi đè/cập nhật mật khẩu mới thay vì tạo bản sao rác.
    - **Hỗ trợ HTML:** Phát hiện tốt hơn các trường trong WebView với placeholder, name, id attributes.
+9. **Kho lưu trữ Wi-Fi (Wifi & Network Vault):** Hỗ trợ lưu trữ SSID/Mật khẩu Wi-Fi. 
+   - **Scan-to-Save:** Tích hợp Camera quét QR Code để tự động nhận diện và lưu mạng.
+   - **Tự động kết nối:** Cho phép điện thoại kết nối thẳng vào mạng Wi-Fi từ bên trong app thông qua `WifiNetworkSuggestion`.
 
 ### ⏳ Đang phát triển / Chưa làm
 1. **Chống chụp màn hình (Anti-Screenshot):** Đã có code `FLAG_SECURE` nhưng đang bị comment lại trong `MainActivity`.
-2. **Wifi & Network Vault:** Thêm Data class và UI riêng để lưu SSID/Pass Wifi.
-4. **Quick Fill Service:** Nhận diện ô nhập liệu để hiển thị gợi ý trên bàn phím.
+2. **Quick Fill Service:** Nhận diện ô nhập liệu để hiển thị gợi ý trên bàn phím.
 
 ## 5. 🔄 Luồng hoạt động (Core Flow)
 - **Mở App:** `MainActivity` -> Kiểm tra `SecurityManager.isSecurityEnabled()` -> Gọi `BiometricPrompt` -> Thành công -> `DashboardScreen`.

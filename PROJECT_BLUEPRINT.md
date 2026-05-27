@@ -12,11 +12,11 @@
 - **Device Credential Fallback:** Sử dụng Mật khẩu/Mã PIN/Pattern khóa màn hình gốc của thiết bị khi sinh trắc học lỗi hoặc không khả dụng.
 - **Anti-Screenshot:** Chống chụp màn hình bằng `FLAG_SECURE`.
 - **Lưu trữ mật khẩu:** Sử dụng các phương pháp lưu trữ hiện đại được cung cấp bởi Android.
-
-### B. Nhóm tính năng tự động hóa (Mới)
+- 📶 **Wifi & Network Vault (Scan-to-Save):** Danh mục riêng lưu thông tin Wi-Fi. Tích hợp quét QR Code chia sẻ Wi-Fi (Google ML Kit) để tự động điền thông tin. Cung cấp tính năng kết nối mạng trực tiếp từ App thông qua `WifiNetworkSuggestion`.
 - 🤖 **Smart Autofill Service:** Tự động điền mật khẩu nâng cao. Nhận diện Web/App thông minh thông qua cấu trúc WebView và Package Name. Tính năng tự động cập nhật/ghi đè mật khẩu rác.
-- 📶 **Wifi & Network Vault (Scan-to-Save):** Danh mục riêng lưu thông tin Wi-Fi. Tích hợp quét QR Code chia sẻ Wi-Fi (Google ML Kit) và quét danh sách mạng đang phát sóng (`WifiManager` - Requires Location) để tự động điền thông tin. Cung cấp tính năng kết nối mạng trực tiếp từ App thông qua `WifiNetworkSuggestion`/`WifiNetworkSpecifier`.
 - 🗑️ **Data Lifecycle Management:** Hệ thống Soft Delete, khôi phục hoặc xóa vĩnh viễn mật khẩu linh hoạt.
+
+### B. Nhóm tính năng tự động hóa (Sắp tới)
 - 🪄 **Auto-Suggestion:** Đề xuất mật khẩu mạnh (Strong Password Generator) khi người dùng tạo tài khoản mới.
 - ⚡ **Quick Fill Service:** Tự động nhận diện ô nhập liệu (Input Field) và hiển thị gợi ý ngay trên bàn phím.
 
