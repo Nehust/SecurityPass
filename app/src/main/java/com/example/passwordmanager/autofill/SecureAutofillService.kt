@@ -108,30 +108,8 @@ class SecureAutofillService : AutofillService() {
             val datasetBuilder = Dataset.Builder()
             val autofillValue = android.view.autofill.AutofillValue.forText(generatedPassword)
             
-            var inlinePresentation: InlinePresentation? = null
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlineRequest != null && inlineRequest.inlinePresentationSpecs.isNotEmpty()) {
-                val spec = inlineRequest.inlinePresentationSpecs.first()
-                try {
-                    val avatarIcon = com.example.passwordmanager.utils.AvatarGenerator.generateAvatarIcon("G")
-                    
-                    val dummyIntent = PendingIntent.getActivity(this, 0, Intent(), PendingIntent.FLAG_IMMUTABLE)
-                    val slice = androidx.autofill.inline.v1.InlineSuggestionUi.newContentBuilder(dummyIntent)
-                        .setTitle("Gợi ý: $generatedPassword")
-                        .setSubtitle("Mật khẩu mạnh")
-                        .setStartIcon(avatarIcon)
-                        .build()
-                        .slice
-                    inlinePresentation = InlinePresentation(slice, spec, false)
-                } catch (e: Exception) {
-                    Log.e("AutofillDebug", "Lỗi tạo InlinePresentation cho Gợi ý: ${e.message}")
-                }
-            }
-
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlinePresentation != null) {
-                datasetBuilder.setValue(parser.passwordId!!, autofillValue, presentation, inlinePresentation)
-            } else {
-                datasetBuilder.setValue(parser.passwordId!!, autofillValue, presentation)
-            }
+            // Ép buộc dùng Classic Dropdown bằng cách chỉ cung cấp RemoteViews (không cấp InlinePresentation)
+            datasetBuilder.setValue(parser.passwordId!!, autofillValue, presentation)
             
             fillResponseBuilder.addDataset(datasetBuilder.build())
         }
