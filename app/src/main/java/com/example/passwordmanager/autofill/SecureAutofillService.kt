@@ -140,6 +140,7 @@ class SecureAutofillService : AutofillService() {
         var finalUsername = ""
         var finalPassword = ""
         var targetPackageName = ""
+        var targetWebDomain = ""
 
         for (context in request.fillContexts) {
             val structure = context.structure
@@ -149,6 +150,10 @@ class SecureAutofillService : AutofillService() {
             val parser = StructureParser(structure)
             parser.parse()
 
+            if (parser.webDomain.isNotEmpty()) {
+                targetWebDomain = parser.webDomain
+            }
+
             val uText = parser.usernameNode?.text?.toString()
             if (!uText.isNullOrEmpty()) finalUsername = uText
 
@@ -157,25 +162,27 @@ class SecureAutofillService : AutofillService() {
         }
 
         if (finalUsername.isNotEmpty() && finalPassword.isNotEmpty()) {
-            val isApp = targetPackageName.isNotEmpty() && !targetPackageName.contains("chrome") && !targetPackageName.contains("browser")
+            val isApp = targetWebDomain.isEmpty() && targetPackageName.isNotEmpty() && !targetPackageName.contains("chrome") && !targetPackageName.contains("browser")
             val accounts = EncryptionHelper.loadAccounts(this).toMutableList()
 
+            // Logic tìm tài khoản trùng lặp: Nếu là App thì khớp PackageName, nếu là Web thì khớp Domain
             val existingAccount = accounts.find { 
                 it.getName() == finalUsername && 
-                it.getPackageName() == targetPackageName && 
-                !it.getDeleted()
+                !it.getDeleted() &&
+                ((isApp && it.getPackageName() == targetPackageName) || (!isApp && it.getDomain() == targetWebDomain && targetWebDomain.isNotEmpty()))
             }
 
             if (existingAccount != null) {
                 existingAccount.setPassword(finalPassword)
-                // Cập nhật lại loại nếu cần
                 existingAccount.setType(if (isApp) AccountType.APP else AccountType.WEB)
+                if (!isApp) existingAccount.setDomain(targetWebDomain)
             } else {
                 val account = Account(
                     name = finalUsername,
                     password = finalPassword,
                     type = if (isApp) AccountType.APP else AccountType.WEB,
-                    packageName = targetPackageName
+                    packageName = targetPackageName,
+                    domain = targetWebDomain
                 )
                 accounts.add(account)
             }
