@@ -34,6 +34,16 @@ fun AccountItem(
     val displayName = if (isWifi) account.getSsid() else account.getName()
     val firstLetter = if (displayName.isNotEmpty()) displayName.substring(0, 1).uppercase() else "?"
     
+    val colors = listOf(
+        0xFFF44336, 0xFFE91E63, 0xFF9C27B0, 0xFF673AB7,
+        0xFF3F51B5, 0xFF2196F3, 0xFF03A9F4, 0xFF00BCD4,
+        0xFF009688, 0xFF4CAF50, 0xFF8BC34A, 0xFFCDDC39,
+        0xFFFFC107, 0xFFFF9800, 0xFFFF5722, 0xFF795548,
+        0xFF9E9E9E, 0xFF607D8B
+    )
+    val colorHash = kotlin.math.abs(displayName.hashCode())
+    val backgroundColor = Color(colors[colorHash % colors.size])
+    
     // Giả lập trạng thái password để hiển thị text màu đỏ/xám như ảnh
     val isCompromised = displayName.contains("OpenAI", ignoreCase = true) || displayName.contains("bkict", ignoreCase = true)
 
@@ -60,7 +70,7 @@ fun AccountItem(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF2C2C2E)),
+                    .background(backgroundColor),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

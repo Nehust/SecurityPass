@@ -91,8 +91,13 @@ class SecureAutofillService : AutofillService() {
 
         if (matchedAccounts.isNotEmpty()) {
             for (account in matchedAccounts) {
+                val labelForLogo = if (account.isWebAccount() && account.getDomain().isNotEmpty()) account.getDomain() else account.getPackageName()
+                val avatarBitmap = com.example.passwordmanager.utils.AvatarGenerator.generateAvatarBitmap(labelForLogo)
+                val avatarIcon = com.example.passwordmanager.utils.AvatarGenerator.generateAvatarIcon(labelForLogo)
+
                 val presentation = RemoteViews(this.packageName, R.layout.autofill_item)
                 presentation.setTextViewText(R.id.text_view, account.getName())
+                presentation.setImageViewBitmap(R.id.logo_view, avatarBitmap)
 
                 val authIntent = Intent(this, AutofillAuthActivity::class.java).apply {
                     putExtra("EXTRA_USERNAME_ID", parser.usernameId)
@@ -116,6 +121,7 @@ class SecureAutofillService : AutofillService() {
                         val slice = androidx.autofill.inline.v1.InlineSuggestionUi.newContentBuilder(pendingIntent)
                             .setTitle(account.getName())
                             .setSubtitle(if (account.isAppAccount()) "App" else "Web")
+                            .setStartIcon(avatarIcon)
                             .build()
                             .slice
                         inlinePresentation = InlinePresentation(slice, spec, false)
