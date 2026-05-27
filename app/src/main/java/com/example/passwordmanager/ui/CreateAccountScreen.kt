@@ -60,6 +60,17 @@ fun CreateAccountScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var showQRScanner by remember { mutableStateOf(false) }
     var showTotpQRScanner by remember { mutableStateOf(false) }
+    var showPasswordGenerator by remember { mutableStateOf(false) }
+
+    if (showPasswordGenerator) {
+        PasswordGeneratorBottomSheet(
+            onDismiss = { showPasswordGenerator = false },
+            onPasswordGenerated = { generated ->
+                password = generated
+                showPasswordGenerator = false
+            }
+        )
+    }
     var showWifiListDialog by remember { mutableStateOf(false) }
     var availableWifiList by remember { mutableStateOf<List<String>>(emptyList()) }
 
@@ -370,12 +381,21 @@ fun CreateAccountScreen(
                             placeholder = { Text("password", color = Color.Gray) },
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             trailingIcon = {
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(
-                                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = "Toggle password",
-                                        tint = Color.Gray
-                                    )
+                                Row {
+                                    IconButton(onClick = { showPasswordGenerator = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Key,
+                                            contentDescription = "Generate Password",
+                                            tint = Color(0xFF0A84FF)
+                                        )
+                                    }
+                                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                        Icon(
+                                            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                            contentDescription = "Toggle password",
+                                            tint = Color.Gray
+                                        )
+                                    }
                                 }
                             },
                             colors = OutlinedTextFieldDefaults.colors(
