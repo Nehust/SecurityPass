@@ -66,13 +66,27 @@ class SecureAutofillService : AutofillService() {
             inlineRequest = request.inlineSuggestionsRequest
         }
 
-        // Hỗ trợ lưu trên các trang nhiều bước (Multi-step login)
+        // Tối ưu hộp thoại Lưu mật khẩu
         if (parser.passwordId != null) {
-            val saveInfo = SaveInfo.Builder(
+            val builder = SaveInfo.Builder(
                 SaveInfo.SAVE_DATA_TYPE_PASSWORD or SaveInfo.SAVE_DATA_TYPE_USERNAME,
                 arrayOf(parser.passwordId!!)
-            ).setFlags(SaveInfo.FLAG_SAVE_ON_ALL_VIEWS_INVISIBLE).build()
-            fillResponseBuilder.setSaveInfo(saveInfo)
+            )
+            
+            if (parser.usernameId != null) {
+                builder.setOptionalIds(arrayOf(parser.usernameId!!))
+            }
+
+            val domainOrApp = if (parsedWebDomain.isNotEmpty()) parsedWebDomain else packageName
+            builder.setDescription("Lưu tài khoản cho: $domainOrApp")
+
+            // Bí quyết: Với App, không dùng cờ INVISIBLE. Hộp thoại CHỈ hiện khi Activity Login đóng (đăng nhập thành công).
+            // Với Web (Chrome), Activity không đóng nên BẮT BUỘC phải dùng cờ INVISIBLE (mọi view biến mất).
+            if (parsedWebDomain.isNotEmpty()) {
+                builder.setFlags(SaveInfo.FLAG_SAVE_ON_ALL_VIEWS_INVISIBLE)
+            }
+
+            fillResponseBuilder.setSaveInfo(builder.build())
         }
 
         if (matchedAccounts.isNotEmpty()) {
