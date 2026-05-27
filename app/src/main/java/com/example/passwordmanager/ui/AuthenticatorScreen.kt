@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -63,10 +66,20 @@ fun AuthenticatorScreen(
                                 parsed.accountName.isNotEmpty() -> parsed.accountName
                                 else -> "Authenticator"
                             }
+                            // Tạo domain từ issuer để hiển thị link trên thẻ 2FA
+                            // VD: issuer = "Google" → domain = "google.com"
+                            val guessedDomain = when {
+                                parsed.issuer.isEmpty() -> ""
+                                // Nếu issuer đã chứa dấu chấm (là domain thật) → dùng thẳng
+                                parsed.issuer.contains(".") -> parsed.issuer.lowercase().trim()
+                                // Ngược lại, thêm .com phía sau
+                                else -> "${parsed.issuer.lowercase().trim()}.com"
+                            }
                             val newAccount = Account(
                                 name = finalName,
                                 type = AccountType.WEB,
-                                totpSecret = parsed.secret
+                                totpSecret = parsed.secret,
+                                domain = guessedDomain
                             )
                             accounts.add(newAccount)
                             EncryptionHelper.saveAccounts(context, accounts)
@@ -268,70 +281,76 @@ private fun TwoFactorCard(
     )
     val avatarBg = Color(avatarColors[kotlin.math.abs(cleanName.hashCode()) % avatarColors.size])
 
+    // Lấy domain để hiển thị link
+    val domain = account.getDomain().trim()
+    val websiteUrl = when {
+        domain.isEmpty() -> ""
+        domain.startsWith("http://") || domain.startsWith("https://") -> domain
+        else -> "https://$domain"
+    }
+    // Nhãn hiển thị ngắn gọn (bỏ https://)
+    val websiteLabel = domain.removePrefix("https://").removePrefix("http://").removeSuffix("/")
+
     Card(
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // ── Avatar ──────────────────────────────────────────────────
-            Box(
+        Column(modifier = Modifier.fillMaxWidth()) {
+
+            // ── HÀNG 1: Avatar + Tên + Mã TOTP ───────────────────────
+            Row(
                 modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(avatarBg),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = firstLetter,
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            // ── Tên tài khoản ──────────────────────────────────────────
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = account.getName(),
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "2FA · TOTP",
-                    color = Color.Gray,
-                    fontSize = 12.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // ── Mã TOTP + Đồng hồ + Copy ──────────────────────────────
-            Column(horizontalAlignment = Alignment.End) {
-                if (totpCode.length == 6) {
-                    // Mã 6 số
+                // Avatar
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(avatarBg),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "${totpCode.substring(0, 3)} ${totpCode.substring(3)}",
-                        color = codeColor,
+                        text = firstLetter,
+                        color = Color.White,
                         fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 2.sp
+                        fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Đồng hồ đếm ngược nhỏ
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                // Tên tài khoản
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = account.getName(),
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "2FA · TOTP", color = Color.Gray, fontSize = 12.sp)
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Mã TOTP + đồng hồ
+                Column(horizontalAlignment = Alignment.End) {
+                    if (totpCode.length == 6) {
+                        Text(
+                            text = "${totpCode.substring(0, 3)} ${totpCode.substring(3)}",
+                            color = codeColor,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.size(22.dp)) {
                         CircularProgressIndicator(
                             progress = { totpProgress },
@@ -347,36 +366,102 @@ private fun TwoFactorCard(
                             fontWeight = FontWeight.Bold
                         )
                     }
+                }
+            }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+            // ── DIVIDER ───────────────────────────────────────────────
+            HorizontalDivider(thickness = 0.5.dp, color = Color(0xFF2C2C2E))
 
-                    // Nút Copy
+            // ── HÀNG 2: Link website + Nút Copy & Xóa ─────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Chip link website (bấm vào mở trình duyệt)
+                if (websiteUrl.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFF2C2C2E))
+                            .clickable {
+                                try {
+                                    val intent = android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(websiteUrl)
+                                    )
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Không thể mở: $websiteUrl", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = "Website",
+                            tint = Color(0xFF0A84FF),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = websiteLabel,
+                            color = Color(0xFF0A84FF),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 160.dp)
+                        )
+                    }
+                } else {
+                    // Placeholder nhẹ khi chưa có domain
+                    Text(
+                        text = "Chưa có liên kết",
+                        color = Color(0xFF3A3A3C),
+                        fontSize = 12.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Nút Copy
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF2C2C2E))
+                        .clickable {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                                as android.content.ClipboardManager
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OTP", totpCode))
+                            Toast.makeText(context, "Đã sao chép $totpCode", Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = "Copy",
                         tint = Color(0xFF0A84FF),
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable {
-                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
-                                    as android.content.ClipboardManager
-                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OTP", totpCode))
-                                Toast.makeText(context, "Đã sao chép $totpCode", Toast.LENGTH_SHORT).show()
-                            }
+                        modifier = Modifier.size(13.dp)
                     )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    // Nút Xóa
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = Color(0xFF3A3A3C),
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable { onDelete() }
-                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "Sao chép", color = Color(0xFF0A84FF), fontSize = 12.sp)
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Nút Xóa
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    tint = Color(0xFF636366),
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clickable { onDelete() }
+                )
             }
         }
     }
