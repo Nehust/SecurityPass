@@ -196,21 +196,32 @@ class MainActivity : FragmentActivity() {
                             composable("category/{categoryName}") { backStackEntry ->
                                 val categoryName = backStackEntry.arguments?.getString("categoryName") ?: "All"
                                 val decodedCategoryName = java.net.URLDecoder.decode(categoryName, "UTF-8")
-                                CategoryScreen(
-                                    navController = navController,
-                                    categoryName = decodedCategoryName,
-                                    accounts = accounts,
-                                    onAuthenticate = { onSuccess ->
-                                        securityManager.authenticate(
-                                            onSuccess = onSuccess,
-                                            onError = { error ->
-                                                if (!error.contains("hủy", ignoreCase = true)) {
-                                                    Toast.makeText(this@MainActivity, error, Toast.LENGTH_SHORT).show()
-                                                }
+                                
+                                val onAuth: (onSuccess: () -> Unit) -> Unit = { onSuccess ->
+                                    securityManager.authenticate(
+                                        onSuccess = onSuccess,
+                                        onError = { error ->
+                                            if (!error.contains("hủy", ignoreCase = true)) {
+                                                Toast.makeText(this@MainActivity, error, Toast.LENGTH_SHORT).show()
                                             }
-                                        )
-                                    }
-                                )
+                                        }
+                                    )
+                                }
+
+                                if (decodedCategoryName.equals("Codes", ignoreCase = true)) {
+                                    AuthenticatorScreen(
+                                        navController = navController,
+                                        accounts = accounts,
+                                        onAuthenticate = onAuth
+                                    )
+                                } else {
+                                    CategoryScreen(
+                                        navController = navController,
+                                        categoryName = decodedCategoryName,
+                                        accounts = accounts,
+                                        onAuthenticate = onAuth
+                                    )
+                                }
                             }
 
                             composable("createAccount") {

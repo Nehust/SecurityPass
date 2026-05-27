@@ -31,6 +31,7 @@ import java.util.concurrent.Executors
 fun QRScannerScreen(
     onWiFiScanned: ((ssid: String, password: String, securityType: String) -> Unit)? = null,
     onTotpScanned: ((secret: String) -> Unit)? = null,
+    onQRCodeScanned: ((rawString: String) -> Unit)? = null,
     onCancel: () -> Unit
 ) {
     val context = LocalContext.current
@@ -99,6 +100,11 @@ fun QRScannerScreen(
                                                     cameraProvider.unbindAll()
                                                     break
                                                 }
+                                            } else if (onQRCodeScanned != null) {
+                                                val text = barcode.rawValue ?: ""
+                                                onQRCodeScanned(text)
+                                                cameraProvider.unbindAll()
+                                                break
                                             } else if (onTotpScanned != null && (barcode.valueType == Barcode.TYPE_URL || barcode.valueType == Barcode.TYPE_TEXT)) {
                                                 val text = barcode.rawValue ?: ""
                                                 val secret = com.example.passwordmanager.utils.OtpUriParser.parseSecretFromUri(text)

@@ -21,4 +21,40 @@ object OtpUriParser {
             null
         }
     }
+
+    data class TotpData(
+        val secret: String,
+        val issuer: String,
+        val accountName: String
+    )
+
+    fun parse(uriString: String): TotpData? {
+        if (!uriString.startsWith("otpauth://totp/", ignoreCase = true)) {
+            return null
+        }
+        return try {
+            val uri = Uri.parse(uriString)
+            val secret = uri.getQueryParameter("secret") ?: return null
+            
+            var issuer = uri.getQueryParameter("issuer") ?: ""
+            var accountName = uri.path?.removePrefix("/") ?: ""
+
+            // Handle format like /Issuer:AccountName
+            if (accountName.contains(":")) {
+                val parts = accountName.split(":", limit = 2)
+                if (issuer.isEmpty()) {
+                    issuer = parts[0].trim()
+                }
+                accountName = parts[1].trim()
+            } else if (issuer.isEmpty()) {
+                // Sometime accountName is just the issuer
+                issuer = accountName
+            }
+            
+            TotpData(secret, issuer, accountName)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }

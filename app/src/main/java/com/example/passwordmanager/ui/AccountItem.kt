@@ -31,7 +31,8 @@ fun AccountItem(
     context: Context,
     onEdit: (Account) -> Unit,
     onDelete: (Account) -> Unit, // Giữ lại chữ ký hàm để không lỗi file khác, nhưng không dùng UI vuốt nữa
-    onAuthenticate: ((onSuccess: () -> Unit) -> Unit)? = null
+    onAuthenticate: ((onSuccess: () -> Unit) -> Unit)? = null,
+    isCodesView: Boolean = false
 ) {
     val isWifi = account.getType() == AccountType.WIFI
     val displayName = if (isWifi) account.getSsid() else account.getName()
