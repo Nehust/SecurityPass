@@ -37,17 +37,23 @@ class SecureAutofillService : AutofillService() {
 
         val accounts = EncryptionHelper.loadAccounts(this)
 
-        // Improved matching: prioritize by package name, then by domain
+        // Improved matching: prioritize by package name, then by webDomain from parser, then by activity domain
+        val parsedWebDomain = parser.webDomain.lowercase()
+        val activityDomain = structure.activityComponent.className.lowercase()
+        
         val matchedAccounts = accounts.filter {
             it.isWebAccount() || it.isAppAccount()
         }.sortedWith(compareByDescending<Account> { account ->
             // Exact package match gets highest priority
             account.getPackageName() == packageName
         }.thenByDescending { account ->
-            // Domain match gets second priority
+            // WebDomain from AssistStructure gets second priority (Chrome/WebViews)
             val accountDomain = account.getDomain().lowercase()
-            val webDomain = structure.activityComponent.className.lowercase()
-            accountDomain.isNotEmpty() && webDomain.contains(accountDomain)
+            accountDomain.isNotEmpty() && parsedWebDomain.contains(accountDomain)
+        }.thenByDescending { account ->
+            // Activity domain match gets third priority
+            val accountDomain = account.getDomain().lowercase()
+            accountDomain.isNotEmpty() && activityDomain.contains(accountDomain)
         }.thenBy { account ->
             // Alphabetical order as tiebreaker
             account.getName().lowercase()
@@ -185,6 +191,10 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
     var passwordId: AutofillId? = null
     var usernameNode: android.app.assist.AssistStructure.ViewNode? = null
     var passwordNode: android.app.assist.AssistStructure.ViewNode? = null
+    var webDomain: String = ""
+
+    // Danh sách lưu các ô nhập liệu (để dự đoán theo vị trí)
+    private val textFields = mutableListOf<android.app.assist.AssistStructure.ViewNode>()
 
     fun parse() {
         val windowCount = structure.windowNodeCount
@@ -192,15 +202,44 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
             val windowNode = structure.getWindowNodeAt(i)
             traverseNode(windowNode.rootViewNode)
         }
+
+        // --- THUẬT TOÁN NỘI SUY DỰA TRÊN VỊ TRÍ ---
+        // Nếu đã tìm thấy tài khoản, nhưng không tìm thấy password
+        if (passwordId == null && usernameId != null) {
+            val uIndex = textFields.indexOf(usernameNode)
+            // Lấy ô nhập liệu kế tiếp ngay sau ô tài khoản
+            if (uIndex != -1 && uIndex + 1 < textFields.size) {
+                val nextNode = textFields[uIndex + 1]
+                passwordId = nextNode.autofillId
+                passwordNode = nextNode
+                Log.d("AutofillDebug", "Heuristics: Đoán ô thứ ${uIndex+2} là Mật khẩu vì nằm ngay sau Tài khoản.")
+            }
+        }
+        
+        // Nếu chỉ có đúng 2 ô nhập liệu, mặc định ô 1 là User, ô 2 là Pass
+        if (usernameId == null && passwordId == null && textFields.size >= 2) {
+            usernameId = textFields[0].autofillId
+            usernameNode = textFields[0]
+            passwordId = textFields[1].autofillId
+            passwordNode = textFields[1]
+            Log.d("AutofillDebug", "Heuristics: Chỉ có các ô nhập liệu chung chung, gán 2 ô đầu tiên làm User/Pass.")
+        }
     }
 
     private fun traverseNode(node: android.app.assist.AssistStructure.ViewNode?) {
         if (node == null) return
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            val domain = node.webDomain?.toString()
+            if (!domain.isNullOrEmpty()) {
+                webDomain = domain
+            }
+        }
+
         var isUser = false
         var isPass = false
 
-        // Check autofill hints first (highest priority)
+        // 1. Phân tích Autofill Hints (Mạnh nhất)
         val hints = node.autofillHints
         if (hints != null) {
             for (hint in hints) {
@@ -208,7 +247,7 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
                 if (h.contains("username") || h.contains("email") || h.contains("login") || h.contains("user") || h.contains("account")) {
                     isUser = true
                 }
-                if (h.contains("password") || h.contains("pass") || h.contains("passwd")) {
+                if (h.contains("password") || h.contains("pass") || h.contains("passwd") || h.contains("current-password")) {
                     isPass = true
                 }
             }
@@ -217,6 +256,7 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
         val className = node.className?.toString() ?: ""
         val viewId = node.idEntry?.lowercase() ?: ""
         val inputType = node.inputType
+        val baseInputType = inputType and 0xFFF
         val hintText = node.hint?.toString()?.lowercase() ?: ""
         val text = node.text?.toString()?.lowercase() ?: ""
 
@@ -231,7 +271,6 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
             val passKeywords = listOf("pass", "mật khẩu", "password", "passwd", "pin")
 
             // Check input type for password fields
-            val baseInputType = inputType and 0xFFF
             if (userKeywords.any { viewId.contains(it) }) {
                 isUser = true
             } else if (passKeywords.any { viewId.contains(it) }) {
@@ -256,28 +295,36 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
             }
         }
 
-        // Enhanced HTML field detection
+        // Nếu là ô nhập liệu, đưa vào mảng để nội suy sau này
+        if (className.contains("EditText") || className.contains("TextInput") || baseInputType > 0) {
+            textFields.add(node)
+        }
+
+        // 3. Phân tích mã HTML5 (WebView / Chrome)
         val htmlInfo = node.htmlInfo
         if (htmlInfo != null && !isUser && !isPass) {
             val type = htmlInfo.attributes?.firstOrNull { it.first.lowercase() == "type" }?.second?.lowercase()
             val name = htmlInfo.attributes?.firstOrNull { it.first.lowercase() == "name" }?.second?.lowercase()
             val id = htmlInfo.attributes?.firstOrNull { it.first.lowercase() == "id" }?.second?.lowercase()
             val placeholder = htmlInfo.attributes?.firstOrNull { it.first.lowercase() == "placeholder" }?.second?.lowercase()
+            val autocomplete = htmlInfo.attributes?.firstOrNull { it.first.lowercase() == "autocomplete" }?.second?.lowercase()
 
-            val userKeywords = listOf("user", "email", "login", "account")
-            val passKeywords = listOf("pass", "password", "passwd")
+            val userKeywords = listOf("user", "email", "login", "account", "phone")
+            val passKeywords = listOf("pass", "password", "passwd", "current-password")
 
-            if (type == "email" || type == "text") {
+            if (type == "email" || type == "text" || type == "tel") {
                 if (userKeywords.any { name?.contains(it) == true } ||
                     userKeywords.any { id?.contains(it) == true } ||
-                    userKeywords.any { placeholder?.contains(it) == true }) {
+                    userKeywords.any { placeholder?.contains(it) == true } ||
+                    userKeywords.any { autocomplete?.contains(it) == true }) {
                     isUser = true
                 }
             }
             if (type == "password" ||
                 passKeywords.any { name?.contains(it) == true } ||
                 passKeywords.any { id?.contains(it) == true } ||
-                passKeywords.any { placeholder?.contains(it) == true }) {
+                passKeywords.any { placeholder?.contains(it) == true } ||
+                passKeywords.any { autocomplete?.contains(it) == true }) {
                 isPass = true
                 isUser = false
             }
