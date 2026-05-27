@@ -106,10 +106,48 @@ class SecureAutofillService : AutofillService() {
             presentation.setImageViewBitmap(R.id.logo_view, avatarBitmap)
 
             val datasetBuilder = Dataset.Builder()
-            val autofillValue = android.view.autofill.AutofillValue.forText(generatedPassword)
             
-            // Ép buộc dùng Classic Dropdown bằng cách chỉ cung cấp RemoteViews (không cấp InlinePresentation)
-            datasetBuilder.setValue(parser.passwordId!!, autofillValue, presentation)
+            val authIntent = Intent(this, AutofillAuthActivity::class.java).apply {
+                putExtra("EXTRA_IS_GENERATOR", true)
+                putExtra("EXTRA_PASSWORD_ID", parser.passwordId)
+                if (parser.usernameId != null && parser.usernameNode != null) {
+                    putExtra("EXTRA_USERNAME_ID", parser.usernameId)
+                    val uText = parser.usernameNode?.text?.toString()
+                    if (!uText.isNullOrEmpty()) {
+                        putExtra("EXTRA_USERNAME_VALUE", uText)
+                    }
+                }
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                this, 
+                9999, // Unique ID cho Generator
+                authIntent, 
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
+
+            var inlinePresentation: InlinePresentation? = null
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlineRequest != null && inlineRequest.inlinePresentationSpecs.isNotEmpty()) {
+                val spec = inlineRequest.inlinePresentationSpecs.first()
+                try {
+                    val avatarIcon = com.example.passwordmanager.utils.AvatarGenerator.generateAvatarIcon("G")
+                    val slice = androidx.autofill.inline.v1.InlineSuggestionUi.newContentBuilder(pendingIntent)
+                        .setTitle("Tạo Mật khẩu Mạnh")
+                        .setSubtitle("Nhấn để sinh mật khẩu ngẫu nhiên")
+                        .setStartIcon(avatarIcon)
+                        .build()
+                        .slice
+                    inlinePresentation = InlinePresentation(slice, spec, false)
+                } catch (e: Exception) {
+                    Log.e("AutofillDebug", "Lỗi tạo InlinePresentation cho Gợi ý: ${e.message}")
+                }
+            }
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlinePresentation != null) {
+                datasetBuilder.setValue(parser.passwordId!!, null, presentation, inlinePresentation)
+            } else {
+                datasetBuilder.setValue(parser.passwordId!!, null, presentation)
+            }
+            datasetBuilder.setAuthentication(pendingIntent.intentSender)
             
             fillResponseBuilder.addDataset(datasetBuilder.build())
         }
