@@ -37,27 +37,26 @@ class SecureAutofillService : AutofillService() {
 
         val accounts = EncryptionHelper.loadAccounts(this)
 
-        // Improved matching: prioritize by package name, then by webDomain from parser, then by activity domain
         val parsedWebDomain = parser.webDomain.lowercase()
-        val activityDomain = structure.activityComponent.className.lowercase()
+        val isBrowser = packageName.contains("chrome") || packageName.contains("browser")
         
-        val matchedAccounts = accounts.filter {
-            it.isWebAccount() || it.isAppAccount()
-        }.sortedWith(compareByDescending<Account> { account ->
-            // Exact package match gets highest priority
-            account.getPackageName() == packageName
-        }.thenByDescending { account ->
-            // WebDomain from AssistStructure gets second priority (Chrome/WebViews)
+        val matchedAccounts = accounts.filter { account ->
+            if (account.getDeleted()) return@filter false
+            if (!account.isWebAccount() && !account.isAppAccount()) return@filter false
+
             val accountDomain = account.getDomain().lowercase()
-            accountDomain.isNotEmpty() && parsedWebDomain.contains(accountDomain)
-        }.thenByDescending { account ->
-            // Activity domain match gets third priority
-            val accountDomain = account.getDomain().lowercase()
-            accountDomain.isNotEmpty() && activityDomain.contains(accountDomain)
-        }.thenBy { account ->
-            // Alphabetical order as tiebreaker
-            account.getName().lowercase()
-        })
+            
+            if (parsedWebDomain.isNotEmpty()) {
+                // Đang lướt web: CHỈ hiển thị tài khoản có domain khớp với trang web hiện tại
+                accountDomain.isNotEmpty() && parsedWebDomain.contains(accountDomain)
+            } else if (isBrowser) {
+                // Ở trong trình duyệt nhưng không ở trang web cụ thể nào (ví dụ trang Cài đặt của Chrome)
+                false
+            } else {
+                // Đang dùng App: CHỈ hiển thị tài khoản của đúng App đó
+                account.getPackageName() == packageName
+            }
+        }.sortedBy { it.getName().lowercase() }
 
         val fillResponseBuilder = FillResponse.Builder()
 
