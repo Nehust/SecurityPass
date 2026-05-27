@@ -55,9 +55,13 @@ class SecureAutofillService : AutofillService() {
 
         val fillResponseBuilder = FillResponse.Builder()
 
+        // Kiểm tra Inline Suggestions (Android 11+)
+        var inlineRequest: android.view.inputmethod.InlineSuggestionsRequest? = null
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            inlineRequest = request.inlineSuggestionsRequest
+        }
+
         // Hỗ trợ lưu trên các trang nhiều bước (Multi-step login)
-        // Chỉ trigger hỏi lưu khi Password bị ẩn đi (hoàn tất đăng nhập). 
-        // Tránh hỏi lưu ngay sau khi nhập email ở trang 1.
         if (parser.passwordId != null) {
             val saveInfo = SaveInfo.Builder(
                 SaveInfo.SAVE_DATA_TYPE_PASSWORD or SaveInfo.SAVE_DATA_TYPE_USERNAME,
@@ -85,12 +89,36 @@ class SecureAutofillService : AutofillService() {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
                 )
 
+                // Khởi tạo InlinePresentation nếu bàn phím hỗ trợ
+                var inlinePresentation: InlinePresentation? = null
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlineRequest != null && inlineRequest.inlinePresentationSpecs.isNotEmpty()) {
+                    val spec = inlineRequest.inlinePresentationSpecs.first()
+                    try {
+                        val slice = androidx.autofill.inline.v1.InlineSuggestionUi.newContentBuilder(pendingIntent)
+                            .setTitle(account.getName())
+                            .setSubtitle(if (account.isAppAccount()) "App" else "Web")
+                            .build()
+                            .slice
+                        inlinePresentation = InlinePresentation(slice, spec, false)
+                    } catch (e: Exception) {
+                        Log.e("AutofillDebug", "Lỗi tạo InlinePresentation: ${e.message}")
+                    }
+                }
+
                 val datasetBuilder = Dataset.Builder()
                 if (parser.usernameId != null) {
-                    datasetBuilder.setValue(parser.usernameId!!, null, presentation)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlinePresentation != null) {
+                        datasetBuilder.setValue(parser.usernameId!!, null, presentation, inlinePresentation)
+                    } else {
+                        datasetBuilder.setValue(parser.usernameId!!, null, presentation)
+                    }
                 }
                 if (parser.passwordId != null) {
-                    datasetBuilder.setValue(parser.passwordId!!, null, presentation)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlinePresentation != null) {
+                        datasetBuilder.setValue(parser.passwordId!!, null, presentation, inlinePresentation)
+                    } else {
+                        datasetBuilder.setValue(parser.passwordId!!, null, presentation)
+                    }
                 }
                 datasetBuilder.setAuthentication(pendingIntent.intentSender)
 

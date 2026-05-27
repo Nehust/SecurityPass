@@ -64,6 +64,7 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.fragment.ktx)
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
+    implementation("androidx.autofill:autofill:1.1.0")
 
     // ML Kit & CameraX
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
