@@ -33,7 +33,13 @@ fun AccountItem(
     val isWifi = account.getType() == AccountType.WIFI
     val displayName = if (isWifi) account.getSsid() else account.getName()
     
-    val sourceStr = account.getPackageName().takeIf { it.isNotEmpty() } ?: account.getDomain().takeIf { it.isNotEmpty() }
+    val sourceStr = if (account.isWebAccount() && account.getDomain().isNotEmpty()) {
+        account.getDomain()
+    } else {
+        val pkg = account.getPackageName()
+        if (pkg.isNotEmpty() && pkg != "com.android.chrome") pkg else account.getDomain().takeIf { it.isNotEmpty() } ?: pkg
+    }.takeIf { it.isNotEmpty() }
+
     val labelForLogo = if (isWifi) account.getSsid() else sourceStr ?: displayName
     val cleanName = com.example.passwordmanager.utils.AvatarGenerator.extractCleanName(labelForLogo)
     val firstLetter = if (cleanName.isNotEmpty() && cleanName != "?") cleanName.substring(0, 1).uppercase() else "?"
