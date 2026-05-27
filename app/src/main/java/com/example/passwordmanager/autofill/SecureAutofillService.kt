@@ -95,8 +95,8 @@ class SecureAutofillService : AutofillService() {
             fillResponseBuilder.setSaveInfo(builder.build())
         }
 
-        // Đề xuất Mật khẩu Mạnh nếu là Form Đăng ký
-        if (parser.isRegistrationForm && parser.passwordId != null) {
+        // Đề xuất Mật khẩu Mạnh nếu là Form Đăng ký HOẶC trang web này chưa từng được lưu mật khẩu
+        if ((parser.isRegistrationForm || matchedAccounts.isEmpty()) && parser.passwordId != null) {
             val generatedPassword = com.example.passwordmanager.utils.PasswordGenerator.generatePassword(16, true, true, true, true)
             
             val presentation = RemoteViews(this.packageName, R.layout.autofill_item)
