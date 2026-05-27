@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -54,9 +55,11 @@ fun CreateAccountScreen(
     var ssid by remember { mutableStateOf(existingAccount?.getSsid() ?: "") }
     var password by remember { mutableStateOf(existingAccount?.getPassword() ?: "") }
     var securityType by remember { mutableStateOf(existingAccount?.getSecurityType() ?: "WPA2") }
+    var totpSecret by remember { mutableStateOf(existingAccount?.getTotpSecret() ?: "") }
     
     var passwordVisible by remember { mutableStateOf(false) }
     var showQRScanner by remember { mutableStateOf(false) }
+    var showTotpQRScanner by remember { mutableStateOf(false) }
     var showWifiListDialog by remember { mutableStateOf(false) }
     var availableWifiList by remember { mutableStateOf<List<String>>(emptyList()) }
 
@@ -76,7 +79,7 @@ fun CreateAccountScreen(
 
     if (showQRScanner) {
         QRScannerScreen(
-            onQRCodeScanned = { scannedSsid, scannedPass, scannedType ->
+            onWiFiScanned = { scannedSsid, scannedPass, scannedType ->
                 ssid = scannedSsid
                 password = scannedPass
                 securityType = scannedType
@@ -87,17 +90,30 @@ fun CreateAccountScreen(
         return
     }
 
+    if (showTotpQRScanner) {
+        QRScannerScreen(
+            onTotpScanned = { scannedSecret ->
+                totpSecret = scannedSecret
+                showTotpQRScanner = false
+            },
+            onCancel = { showTotpQRScanner = false }
+        )
+        return
+    }
+
     val saveAction = {
         keyboardController?.hide()
         if (existingAccount != null) {
             if (accountType != AccountType.WIFI) existingAccount.setName(username) else existingAccount.setSsid(ssid)
             existingAccount.setPassword(password)
+            existingAccount.setTotpSecret(totpSecret)
             existingAccount.setSecurityType(securityType)
             existingAccount.setType(accountType)
         } else {
             val newAccount = Account().apply {
                 if (accountType != AccountType.WIFI) setName(username) else setSsid(ssid)
                 setPassword(password)
+                setTotpSecret(totpSecret)
                 setSecurityType(securityType)
                 setType(accountType)
             }
@@ -373,6 +389,44 @@ fun CreateAccountScreen(
                             modifier = Modifier.weight(1f),
                             singleLine = true
                         )
+                    }
+
+                    if (accountType != AccountType.WIFI) {
+                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = Color(0xFF3A3A3C), thickness = 0.5.dp)
+                        
+                        // 2FA TOTP Row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("2FA Secret", color = Color.White, modifier = Modifier.width(100.dp))
+                            OutlinedTextField(
+                                value = totpSecret,
+                                onValueChange = { totpSecret = it },
+                                placeholder = { Text("Base32 secret (Optional)", color = Color.Gray) },
+                                trailingIcon = {
+                                    IconButton(onClick = { showTotpQRScanner = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.QrCodeScanner,
+                                            contentDescription = "Scan 2FA QR",
+                                            tint = Color(0xFF0A84FF)
+                                        )
+                                    }
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedBorderColor = Color.Transparent,
+                                    unfocusedBorderColor = Color.Transparent,
+                                    focusedTextColor = Color.Gray,
+                                    unfocusedTextColor = Color.Gray
+                                ),
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                        }
                     }
 
                     if (accountType == AccountType.WIFI && !isEditMode) {

@@ -17,10 +17,14 @@ class Account(
     private var securityType: String = "WPA", // WPA, WEP, NONE
     private var packageName: String = "",
     private var domain: String = "",
-    private var isDeleted: Boolean = false
+    private var isDeleted: Boolean = false,
+    private var totpSecret: String = ""
 ) : Serializable {
     fun setName(name: String) { this.name = name }
     fun getName(): String = name
+
+    fun setTotpSecret(secret: String) { this.totpSecret = secret }
+    fun getTotpSecret(): String = totpSecret
 
     fun setPassword(password: String) { this.password = password }
     fun getPassword(): String = password

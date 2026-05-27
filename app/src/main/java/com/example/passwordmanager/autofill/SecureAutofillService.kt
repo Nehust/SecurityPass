@@ -29,6 +29,7 @@ class SecureAutofillService : AutofillService() {
         val savedIds = mutableListOf<AutofillId>()
         if (parser.usernameId != null) savedIds.add(parser.usernameId!!)
         if (parser.passwordId != null) savedIds.add(parser.passwordId!!)
+        if (parser.totpId != null) savedIds.add(parser.totpId!!)
 
         if (savedIds.isEmpty()) {
             callback.onSuccess(null)
@@ -43,6 +44,11 @@ class SecureAutofillService : AutofillService() {
         val matchedAccounts = accounts.filter { account ->
             if (account.getDeleted()) return@filter false
             if (!account.isWebAccount() && !account.isAppAccount()) return@filter false
+
+            // Nếu field duy nhất được nhận diện là TOTP, chỉ hiển thị những tài khoản có secret
+            if (parser.usernameId == null && parser.passwordId == null && parser.totpId != null && account.getTotpSecret().isEmpty()) {
+                return@filter false
+            }
 
             val accountDomain = account.getDomain().lowercase()
             
@@ -96,14 +102,24 @@ class SecureAutofillService : AutofillService() {
                 val avatarIcon = com.example.passwordmanager.utils.AvatarGenerator.generateAvatarIcon(labelForLogo)
 
                 val presentation = RemoteViews(this.packageName, R.layout.autofill_item)
-                presentation.setTextViewText(R.id.text_view, account.getName())
+                
+                // Cập nhật text hiển thị trên UI khi autofill nếu chỉ có field TOTP
+                if (parser.usernameId == null && parser.passwordId == null && parser.totpId != null) {
+                    val totpPreview = com.example.passwordmanager.utils.TotpGenerator.generateTotp(account.getTotpSecret(), System.currentTimeMillis())
+                    presentation.setTextViewText(R.id.text_view, "${account.getName()} - ${totpPreview.substring(0,3)} ${totpPreview.substring(3,6)}")
+                } else {
+                    presentation.setTextViewText(R.id.text_view, account.getName())
+                }
+                
                 presentation.setImageViewBitmap(R.id.logo_view, avatarBitmap)
 
                 val authIntent = Intent(this, AutofillAuthActivity::class.java).apply {
                     putExtra("EXTRA_USERNAME_ID", parser.usernameId)
                     putExtra("EXTRA_PASSWORD_ID", parser.passwordId)
+                    putExtra("EXTRA_TOTP_ID", parser.totpId)
                     putExtra("EXTRA_USERNAME_VALUE", account.getName())
                     putExtra("EXTRA_PASSWORD_VALUE", account.getPassword())
+                    putExtra("EXTRA_TOTP_SECRET", account.getTotpSecret())
                 }
                 
                 val pendingIntent = PendingIntent.getActivity(
@@ -118,8 +134,12 @@ class SecureAutofillService : AutofillService() {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlineRequest != null && inlineRequest.inlinePresentationSpecs.isNotEmpty()) {
                     val spec = inlineRequest.inlinePresentationSpecs.first()
                     try {
+                        val sliceTitle = if (parser.usernameId == null && parser.passwordId == null && parser.totpId != null) {
+                            "Mã 2FA: " + com.example.passwordmanager.utils.TotpGenerator.generateTotp(account.getTotpSecret(), System.currentTimeMillis())
+                        } else account.getName()
+                        
                         val slice = androidx.autofill.inline.v1.InlineSuggestionUi.newContentBuilder(pendingIntent)
-                            .setTitle(account.getName())
+                            .setTitle(sliceTitle)
                             .setSubtitle(if (account.isAppAccount()) "App" else "Web")
                             .setStartIcon(avatarIcon)
                             .build()
@@ -143,6 +163,13 @@ class SecureAutofillService : AutofillService() {
                         datasetBuilder.setValue(parser.passwordId!!, null, presentation, inlinePresentation)
                     } else {
                         datasetBuilder.setValue(parser.passwordId!!, null, presentation)
+                    }
+                }
+                if (parser.totpId != null && account.getTotpSecret().isNotEmpty()) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && inlinePresentation != null) {
+                        datasetBuilder.setValue(parser.totpId!!, null, presentation, inlinePresentation)
+                    } else {
+                        datasetBuilder.setValue(parser.totpId!!, null, presentation)
                     }
                 }
                 datasetBuilder.setAuthentication(pendingIntent.intentSender)
@@ -215,8 +242,10 @@ class SecureAutofillService : AutofillService() {
 class StructureParser(private val structure: android.app.assist.AssistStructure) {
     var usernameId: AutofillId? = null
     var passwordId: AutofillId? = null
+    var totpId: AutofillId? = null
     var usernameNode: android.app.assist.AssistStructure.ViewNode? = null
     var passwordNode: android.app.assist.AssistStructure.ViewNode? = null
+    var totpNode: android.app.assist.AssistStructure.ViewNode? = null
     var webDomain: String = ""
 
     // Danh sách lưu các ô nhập liệu (để dự đoán theo vị trí)
@@ -243,12 +272,25 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
         }
         
         // Nếu chỉ có đúng 2 ô nhập liệu, mặc định ô 1 là User, ô 2 là Pass
-        if (usernameId == null && passwordId == null && textFields.size >= 2) {
+        if (usernameId == null && passwordId == null && totpId == null && textFields.size >= 2) {
             usernameId = textFields[0].autofillId
             usernameNode = textFields[0]
             passwordId = textFields[1].autofillId
             passwordNode = textFields[1]
             Log.d("AutofillDebug", "Heuristics: Chỉ có các ô nhập liệu chung chung, gán 2 ô đầu tiên làm User/Pass.")
+        }
+        
+        // Nếu chỉ có đúng 1 ô nhập liệu và các hệ thống khác không bắt được (có thể là màn hình nhập 2FA riêng biệt)
+        if (usernameId == null && passwordId == null && totpId == null && textFields.size == 1) {
+            val node = textFields[0]
+            val inputType = node.inputType
+            val baseInputType = inputType and 0xFFF
+            // Nếu là dạng text number thì dễ là OTP
+            if (baseInputType == android.text.InputType.TYPE_CLASS_NUMBER || baseInputType == android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD) {
+                totpId = node.autofillId
+                totpNode = node
+                Log.d("AutofillDebug", "Heuristics: Chỉ có 1 ô nhập liệu kiểu số, đoán là OTP.")
+            }
         }
     }
 
@@ -264,6 +306,7 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
 
         var isUser = false
         var isPass = false
+        var isTotp = false
 
         // 1. Phân tích Autofill Hints (Mạnh nhất)
         val hints = node.autofillHints
@@ -275,6 +318,9 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
                 }
                 if (h.contains("password") || h.contains("pass") || h.contains("passwd") || h.contains("current-password")) {
                     isPass = true
+                }
+                if (h.contains("totp") || h.contains("otp") || h.contains("2fa") || h.contains("authenticator") || h.contains("verification") || h.contains("one-time")) {
+                    isTotp = true
                 }
             }
         }
@@ -292,18 +338,23 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
         }
 
         // Enhanced field detection for username/email
-        if (!isUser && !isPass && (className.contains("EditText") || className.contains("TextInput") || className.contains("android.webkit.WebView") || className.contains("View") || className.contains("Button"))) {
+        if (!isUser && !isPass && !isTotp && (className.contains("EditText") || className.contains("TextInput") || className.contains("android.webkit.WebView") || className.contains("View") || className.contains("Button"))) {
             val userKeywords = listOf("user", "email", "login", "account", "tài khoản", "người dùng", "số điện thoại", "phone")
             val passKeywords = listOf("pass", "mật khẩu", "password", "passwd", "pin")
+            val totpKeywords = listOf("totp", "otp", "2fa", "authenticator", "verification", "mã xác thực", "mã bảo mật", "one-time")
 
-            // Check input type for password fields
-            if (userKeywords.any { viewId.contains(it) }) {
+            // Check view ID
+            if (totpKeywords.any { viewId.contains(it) }) {
+                isTotp = true
+            } else if (userKeywords.any { viewId.contains(it) }) {
                 isUser = true
             } else if (passKeywords.any { viewId.contains(it) }) {
                 isPass = true
             }
             // Check hint text
-            else if (userKeywords.any { hintText.contains(it) }) {
+            else if (totpKeywords.any { hintText.contains(it) }) {
+                isTotp = true
+            } else if (userKeywords.any { hintText.contains(it) }) {
                 isUser = true
             } else if (passKeywords.any { hintText.contains(it) }) {
                 isPass = true
@@ -328,7 +379,7 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
 
         // 3. Phân tích mã HTML5 (WebView / Chrome)
         val htmlInfo = node.htmlInfo
-        if (htmlInfo != null && !isUser && !isPass) {
+        if (htmlInfo != null && !isUser && !isPass && !isTotp) {
             val type = htmlInfo.attributes?.firstOrNull { it.first.lowercase() == "type" }?.second?.lowercase()
             val name = htmlInfo.attributes?.firstOrNull { it.first.lowercase() == "name" }?.second?.lowercase()
             val id = htmlInfo.attributes?.firstOrNull { it.first.lowercase() == "id" }?.second?.lowercase()
@@ -337,22 +388,28 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
 
             val userKeywords = listOf("user", "email", "login", "account", "phone")
             val passKeywords = listOf("pass", "password", "passwd", "current-password")
+            val totpKeywords = listOf("totp", "otp", "2fa", "authenticator", "verification", "one-time")
 
-            if (type == "email" || type == "text" || type == "tel") {
+            if (totpKeywords.any { name?.contains(it) == true } ||
+                totpKeywords.any { id?.contains(it) == true } ||
+                totpKeywords.any { placeholder?.contains(it) == true } ||
+                totpKeywords.any { autocomplete?.contains(it) == true }) {
+                isTotp = true
+            }
+            else if (type == "password" ||
+                passKeywords.any { name?.contains(it) == true } ||
+                passKeywords.any { id?.contains(it) == true } ||
+                passKeywords.any { placeholder?.contains(it) == true } ||
+                passKeywords.any { autocomplete?.contains(it) == true }) {
+                isPass = true
+            }
+            else if (type == "email" || type == "text" || type == "tel") {
                 if (userKeywords.any { name?.contains(it) == true } ||
                     userKeywords.any { id?.contains(it) == true } ||
                     userKeywords.any { placeholder?.contains(it) == true } ||
                     userKeywords.any { autocomplete?.contains(it) == true }) {
                     isUser = true
                 }
-            }
-            if (type == "password" ||
-                passKeywords.any { name?.contains(it) == true } ||
-                passKeywords.any { id?.contains(it) == true } ||
-                passKeywords.any { placeholder?.contains(it) == true } ||
-                passKeywords.any { autocomplete?.contains(it) == true }) {
-                isPass = true
-                isUser = false
             }
         }
 
@@ -364,6 +421,10 @@ class StructureParser(private val structure: android.app.assist.AssistStructure)
         if (isPass && passwordId == null) {
             passwordId = node.autofillId
             passwordNode = node
+        }
+        if (isTotp && totpId == null) {
+            totpId = node.autofillId
+            totpNode = node
         }
 
         // Recursively traverse children

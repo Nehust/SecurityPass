@@ -9,8 +9,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -149,14 +152,65 @@ fun AccountItem(
                     )
                 }
             }
-
-            // Arrow Right
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFF3A3A3C),
-                modifier = Modifier.size(20.dp)
-            )
+            if (account.getTotpSecret().isNotEmpty()) {
+                var totpCode by remember { mutableStateOf("") }
+                var totpProgress by remember { mutableStateOf(0f) }
+                
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        val time = System.currentTimeMillis()
+                        val step = 30000L
+                        val remaining = step - (time % step)
+                        totpCode = com.example.passwordmanager.utils.TotpGenerator.generateTotp(account.getTotpSecret(), time)
+                        totpProgress = remaining.toFloat() / step.toFloat()
+                        kotlinx.coroutines.delay(50)
+                    }
+                }
+                
+                if (totpCode.length == 6) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = totpCode.substring(0, 3) + " " + totpCode.substring(3, 6),
+                            color = Color(0xFF0A84FF),
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(18.dp)) {
+                            CircularProgressIndicator(
+                                progress = { totpProgress },
+                                modifier = Modifier.fillMaxSize(),
+                                color = Color(0xFF0A84FF),
+                                strokeWidth = 2.5.dp,
+                                trackColor = Color(0xFF3A3A3C)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.ContentCopy,
+                            contentDescription = "Copy TOTP",
+                            tint = Color.Gray,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable {
+                                    val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    val clipData = android.content.ClipData.newPlainText("TOTP Code", totpCode)
+                                    clipboardManager.setPrimaryClip(clipData)
+                                    android.widget.Toast.makeText(context, "Copied $totpCode", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                        )
+                    }
+                }
+            } else {
+                // Arrow Right
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = Color(0xFF3A3A3C),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
         
         HorizontalDivider(

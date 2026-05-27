@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.passwordmanager"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -76,6 +76,9 @@ dependencies {
     
     // Accompanist Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.35.0-alpha")
+
+    // Base32 Decoding for TOTP
+    implementation("commons-codec:commons-codec:1.16.0")
 
     // Test dependencies
     testImplementation(libs.junit)

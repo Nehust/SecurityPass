@@ -28,7 +28,11 @@ import java.util.concurrent.Executors
 
 @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
 @Composable
-fun QRScannerScreen(onQRCodeScanned: (ssid: String, password: String, securityType: String) -> Unit, onCancel: () -> Unit) {
+fun QRScannerScreen(
+    onWiFiScanned: ((ssid: String, password: String, securityType: String) -> Unit)? = null,
+    onTotpScanned: ((secret: String) -> Unit)? = null,
+    onCancel: () -> Unit
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasCameraPermission by remember {
@@ -80,7 +84,7 @@ fun QRScannerScreen(onQRCodeScanned: (ssid: String, password: String, securityTy
                                 scanner.process(image)
                                     .addOnSuccessListener { barcodes ->
                                         for (barcode in barcodes) {
-                                            if (barcode.valueType == Barcode.TYPE_WIFI) {
+                                            if (onWiFiScanned != null && barcode.valueType == Barcode.TYPE_WIFI) {
                                                 val wifi = barcode.wifi
                                                 if (wifi != null) {
                                                     val ssid = wifi.ssid ?: ""
@@ -91,7 +95,15 @@ fun QRScannerScreen(onQRCodeScanned: (ssid: String, password: String, securityTy
                                                         Barcode.WiFi.TYPE_OPEN -> "NONE"
                                                         else -> "WPA2"
                                                     }
-                                                    onQRCodeScanned(ssid, password, type)
+                                                    onWiFiScanned(ssid, password, type)
+                                                    cameraProvider.unbindAll()
+                                                    break
+                                                }
+                                            } else if (onTotpScanned != null && (barcode.valueType == Barcode.TYPE_URL || barcode.valueType == Barcode.TYPE_TEXT)) {
+                                                val text = barcode.rawValue ?: ""
+                                                val secret = com.example.passwordmanager.utils.OtpUriParser.parseSecretFromUri(text)
+                                                if (secret != null) {
+                                                    onTotpScanned(secret)
                                                     cameraProvider.unbindAll()
                                                     break
                                                 }
